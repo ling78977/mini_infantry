@@ -1,0 +1,25 @@
+Motors:
+  motor_front_left:
+    kp: 64.700000000000003
+    ki: 48.299999999999997
+    kd: 64.200000000000003
+    forward_is_flip: true
+    encoder_is_flip: false
+  motor_front_right:
+    kp: 70.299999999999997
+    ki: 36.399999999999999
+    kd: 67.700000000000003
+    forward_is_flip: true
+    encoder_is_flip: false
+  motor_back_left:
+    kp: 61.200000000000003
+    ki: 65
+    kd: 59.200000000000003
+    forward_is_flip: true
+    encoder_is_flip: false
+  motor_back_right:
+    kp: 59.799999999999997
+    ki: 24.5
+    kd: 61.299999999999997
+    forward_is_flip: false
+    encoder_is_flip: false

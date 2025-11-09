@@ -2,7 +2,6 @@
 
 #include <atomic>
 #include <cmath>
-#include <vector>
 #include <wiringPi.h>
 #include <iostream> // For LOG_INFO/ERROR
 

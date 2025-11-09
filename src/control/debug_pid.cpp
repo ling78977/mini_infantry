@@ -188,7 +188,7 @@ int main() {
     //   continue;
     // }
     // motor->setDirectMode(true);
-    motor->run(true); // Start with auto speed calculation enabled
+    motor->runAutoCalcSpeed(10); // Start with auto speed calculation enabled
   }
 
   const std::string SERVER_ADDRESS = main_config["MqttConfig"]["server_address"].as<std::string>();
@@ -213,7 +213,7 @@ int main() {
   LOG_INFO("MQTT client connected. Starting event loop.");
 
   boost::asio::steady_timer pid_timer(io_ctx);
-  int pid_period_ms = 20; // PID calculation interval
+  int pid_period_ms = 15; // PID calculation interval
 
   std::function<void(const boost::system::error_code &)> pid_task_handler;
   pid_task_handler = [&](const boost::system::error_code &ec) {

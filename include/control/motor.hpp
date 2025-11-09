@@ -1,4 +1,5 @@
 #pragma once
+#include "util/periodic_timer.hpp" // 引入 PeriodicTimer 类
 #include "pid_controller.hpp" // 引入 PidController 类
 #include "rotary_encoder.hpp" // 引入 RotaryEncoder 类
 #include <atomic>
@@ -6,9 +7,8 @@
 #include <cmath>
 #include <functional>
 #include <iostream>
+#include <memory> // For std::unique_ptr
 #include <numeric>
-#include <stdexcept>
-#include <unordered_map>
 #include <vector>
 #include <wiringPi.h>
 
@@ -19,7 +19,6 @@
 #define PWM_PIN_WIR_23 23
 #define PWM_PIN_WIR_24 24
 #define PWM_PIN_WIR_26 26
-
 
 #define PWM_PIN_BCM_12 12
 #define PWM_PIN_BCM_13 13
@@ -38,14 +37,12 @@
 namespace mini_infantry {
 // 获取当前时间的毫秒数（自系统启动或 epoch 以来）
 inline long long get_current_ms() {
-  return std::chrono::duration_cast<std::chrono::milliseconds>(
-             std::chrono::steady_clock::now().time_since_epoch())
-      .count();
+  return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
 }
 class Motor {
 public:
   Motor(boost::asio::io_context &io_ctx, int pwm_pin, int encoder_pinA, int encoder_pinB, int motor_in1, int motor_in2)
-      : speed_timer_(io_ctx), pid_controller_(), rotary_encoder_(encoder_pinA, encoder_pinB) { // 初始化 PidController 和 RotaryEncoder
+      : io_ctx_(io_ctx), pid_controller_(), rotary_encoder_(encoder_pinA, encoder_pinB) { // 初始化 PidController 和 RotaryEncoder
     pwm_pin_ = pwm_pin;
     motor_in1_ = motor_in1;
     motor_in2_ = motor_in2;
@@ -68,14 +65,12 @@ public:
   void pidInit(double kp = 100.0, double ki = 100.0, double kd = 100.0, double max_iout = 99.0) {
     pid_controller_.pidInit(kp, ki, kd, max_iout);
   }
-  void pidSet(double kp, double ki, double kd) {
-    pid_controller_.pidSet(kp, ki, kd);
-  }
-  void run(bool auto_calc_speed = false, int speed_calc_period_ms = 15) {
-    if (auto_calc_speed) {
-      speed_timer_.expires_after(std::chrono::milliseconds(speed_calc_period_ms));
-      speed_timer_.async_wait(std::bind(&Motor::speedUpdateHandler, this, std::placeholders::_1, speed_calc_period_ms));
-    }
+  void pidSet(double kp, double ki, double kd) { pid_controller_.pidSet(kp, ki, kd); }
+  void runAutoCalcSpeed(int speed_calc_period_ms = 15) {
+
+    speed_timer_ = std::make_unique<PeriodicTimer>(io_ctx_, std::bind(&Motor::encoderUpdateSpeed, this),
+                                                   std::chrono::milliseconds(speed_calc_period_ms));
+    speed_timer_->start();
   }
   void controlSetPwm(int pwm_value) {
     pwm_value > 0 ? controlForwardRotate() : controlBackwardRotate();
@@ -91,10 +86,9 @@ public:
   }
   int encoderGetSteps() const { return rotary_encoder_.getSteps(); }
 
-  int pidCalculate(double target, double current) {
-    return pid_controller_.pidCalculate(target, current);
-  }
+  int pidCalculate(double target, double current) { return pid_controller_.pidCalculate(target, current); }
 
+  // encoderUpdateSpeed() is now the callback for PeriodicTimer, no longer takes boost::system::error_code
   void encoderUpdateSpeed() {
     static bool is_first_update_ = true;
     if (is_first_update_) {
@@ -123,13 +117,13 @@ public:
     // Weighted average filter
     float filtered_speed = 0.0f;
     if (speed_buffer_size_ < 3) {
-        float sum = std::accumulate(speed_buffer_.begin(), speed_buffer_.end(), 0.0f);
-        filtered_speed = sum / speed_buffer_size_;
+      float sum = std::accumulate(speed_buffer_.begin(), speed_buffer_.end(), 0.0f);
+      filtered_speed = sum / speed_buffer_size_;
     } else {
-        float latest_speed = speed_buffer_[(speed_buffer_index_ - 1 + speed_buffer_size_) % speed_buffer_size_];
-        float prev_speed = speed_buffer_[(speed_buffer_index_ - 2 + speed_buffer_size_) % speed_buffer_size_];
-        float prev_prev_speed = speed_buffer_[(speed_buffer_index_ - 3 + speed_buffer_size_) % speed_buffer_size_]; // Corrected index
-        filtered_speed = latest_speed * 0.5f + prev_speed * 0.3f + prev_prev_speed * 0.2f;
+      float latest_speed = speed_buffer_[(speed_buffer_index_ - 1 + speed_buffer_size_) % speed_buffer_size_];
+      float prev_speed = speed_buffer_[(speed_buffer_index_ - 2 + speed_buffer_size_) % speed_buffer_size_];
+      float prev_prev_speed = speed_buffer_[(speed_buffer_index_ - 3 + speed_buffer_size_) % speed_buffer_size_]; // Corrected index
+      filtered_speed = latest_speed * 0.5f + prev_speed * 0.3f + prev_prev_speed * 0.2f;
     }
 
     encoder_speed_.store(filtered_speed);
@@ -141,24 +135,15 @@ public:
 
   void encoderSetEncoderIsFlip(bool need_flip) { rotary_encoder_.setEncoderIsFlip(need_flip); } // Delegate to RotaryEncoder
 
-
-  void stopSpeedCalculation() { speed_timer_.cancel(); }
+  void stopSpeedCalculation() {
+    if (speed_timer_) {
+      speed_timer_->stop();
+    }
+  }
 
 private:
-  void speedUpdateHandler(const boost::system::error_code &ec, int period_ms) {
-    if (ec) {
-      if (ec == boost::asio::error::operation_aborted)
-        return; // Timer was cancelled, normal exit
-      LOG_ERROR("Speed timer error: " << ec.message());
-      return;
-    }
-
-    encoderUpdateSpeed();
-
-    // Reschedule the timer
-    speed_timer_.expires_at(speed_timer_.expiry() + std::chrono::milliseconds(period_ms));
-    speed_timer_.async_wait(std::bind(&Motor::speedUpdateHandler, this, std::placeholders::_1, period_ms));
-  }
+  // Removed speedUpdateHandler(const boost::system::error_code &ec, int period_ms)
+  // The encoderUpdateSpeed() method now serves as the callback for PeriodicTimer
 
   void controlForwardRotate() {
     if (forward_need_flip_) {
@@ -193,10 +178,12 @@ private:
   int motor_in1_ = -1;
   int motor_in2_ = -1;
 
+  boost::asio::io_context &io_ctx_; // Reference to the io_context
+
   PidController pid_controller_; // PidController 实例
   RotaryEncoder rotary_encoder_; // RotaryEncoder 实例
 
-  boost::asio::steady_timer speed_timer_;
+  std::unique_ptr<PeriodicTimer> speed_timer_; // Using the new PeriodicTimer
 };
 
 } // namespace mini_infantry

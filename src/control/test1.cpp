@@ -47,7 +47,7 @@ int main() {
 
     for (auto &motor : motors) {
       motor->pidInit();
-      motor->run(); // Default: auto speed calculation is OFF
+      motor->runAutoCalcSpeed(); // Default: auto speed calculation is OFF
     }
 
     int val1 = 0, step1 = 1;

@@ -60,6 +60,7 @@ target_link_libraries(debug_pid PRIVATE
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
     WiringPi::WiringPi
+    yaml-cpp
 )
 # # include 目录（如果存在）
 # if(EXISTS "${CMAKE_SOURCE_DIR}/include")

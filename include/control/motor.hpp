@@ -11,6 +11,10 @@
 #include <unordered_map>
 #include <vector>
 #include <wiringPi.h>
+
+// 简单的日志宏，方便后续替换为更复杂的日志系统
+#define LOG_INFO(msg) std::cout << "[INFO] " << msg << std::endl
+#define LOG_ERROR(msg) std::cerr << "[ERROR] " << msg << std::endl
 #define PWM_PIN_WIR_1 1
 #define PWM_PIN_WIR_23 23
 #define PWM_PIN_WIR_24 24
@@ -47,29 +51,25 @@ enum TransitionResult {
   StepMinus = 8
 };
 struct PidData {
-  float kp;
-  float ki;
-  float kd;
+  double kp;
+  double ki;
+  double kd;
 
-  float max_out = 99;
-  float max_iout;
-
-  float set_val;
-  float fdb_val;
+  double max_out = 99.0;
+  double max_iout;
 
   int out; // pwm -100~100
-  float p_out;
-  float i_out;
-  float d_out;
-  float last_error;
-  float last_last_error;
-  float current_error;
+  double p_out;
+  double i_out;
+  double d_out;
+  double last_error;
+  double current_error;
 };
 // 获取当前时间的毫秒数（自系统启动或 epoch 以来）
 inline long long get_current_ms() {
-  struct timespec ts;
-  clock_gettime(CLOCK_MONOTONIC, &ts);              // 使用单调时钟，避免系统时间被修改影响
-  return ts.tv_sec * 1000LL + ts.tv_nsec / 1000000; // 秒转毫秒 + 纳秒转毫秒
+  return std::chrono::duration_cast<std::chrono::milliseconds>(
+             std::chrono::steady_clock::now().time_since_epoch())
+      .count();
 }
 class Motor {
 public:
@@ -85,6 +85,7 @@ public:
       }
     }
     if (instance_index_ == -1) {
+      LOG_ERROR("Maximum number of Motor instances reached.");
       throw std::runtime_error("Maximum number of Motor instances reached.");
     }
 
@@ -94,16 +95,6 @@ public:
     motor_in1_ = motor_in1;
     motor_in2_ = motor_in2;
 
-    if (!isGpioInitialized_) {
-      if (wiringPiSetup() == -1) {
-        throw std::runtime_error("Failed to initialize wiringPi");
-      } else {
-        isGpioInitialized_ = true;
-        std::cout << "wiringPi initialized successfully" << std::endl;
-      }
-    } else {
-      std::cout << "wiringPi already initialized" << std::endl;
-    }
     pinMode(motor_in1, OUTPUT);
     pinMode(motor_in2, OUTPUT);
     pinMode(encoder_pinA_, INPUT);
@@ -119,19 +110,28 @@ public:
     pullUpDnControl(encoder_pinB_, PUD_UP);
     pwmWrite(pwm_pin_, 0);
     speed_buffer_.resize(speed_buffer_size_, 0.0f);
+
+    encoderUpdateEdge(); // 初始化编码器边缘状态
+
+    if (wiringPiISR(encoder_pinA_, INT_EDGE_BOTH, isr_A_funcs_[instance_index_]) != 0) {
+      throw std::runtime_error("Failed to setup ISR for pin A");
+    }
+    if (wiringPiISR(encoder_pinB_, INT_EDGE_BOTH, isr_B_funcs_[instance_index_]) != 0) {
+      throw std::runtime_error("Failed to setup ISR for pin B");
+    }
+    LOG_INFO("Rotary Encoder started on pins " << encoder_pinA_ << " and " << encoder_pinB_);
   }
-  void pidInit(float kp = 100.0, float ki = 100.0, float kd = 100.0, float max_iout = 99.0) {
+  void pidInit(double kp = 100.0, double ki = 100.0, double kd = 100.0, double max_iout = 99.0) {
     pid_data_.kp = kp;
     pid_data_.ki = ki;
     pid_data_.kd = kd;
     pid_data_.max_iout = max_iout;
-    pid_data_.last_error = 0;
-    pid_data_.last_last_error = 0;
-    pid_data_.current_error = 0;
-    pid_data_.i_out = 0;
+    pid_data_.last_error = 0.0;
+    pid_data_.current_error = 0.0;
+    pid_data_.i_out = 0.0;
     is_pid_initialized_ = true;
   }
-  void pidSet(float kp, float ki, float kd) {
+  void pidSet(double kp, double ki, double kd) {
     pid_data_.kp = kp;
     pid_data_.ki = ki;
     pid_data_.kd = kd;
@@ -142,15 +142,6 @@ public:
     if (!is_pid_initialized_) {
       throw std::runtime_error("PID not initialized!");
     }
-    encoderUpdateEdge();
-
-    if (wiringPiISR(encoder_pinA_, INT_EDGE_BOTH, isr_A_funcs_[instance_index_]) != 0) {
-      throw std::runtime_error("Failed to setup ISR for pin A");
-    }
-    if (wiringPiISR(encoder_pinB_, INT_EDGE_BOTH, isr_B_funcs_[instance_index_]) != 0) {
-      throw std::runtime_error("Failed to setup ISR for pin B");
-    }
-    std::cout << "Rotary Encoder started on pins " << encoder_pinA_ << " and " << encoder_pinB_ << std::endl;
 
     if (auto_calc_speed) {
       speed_timer_.expires_after(std::chrono::milliseconds(speed_calc_period_ms));
@@ -180,11 +171,9 @@ public:
   }
   int encoderGetSteps() const { return encoder_steps_.load(); }
 
-  int pidCalculate(float target, float current) {
+  int pidCalculate(double target, double current) {
     // 1. Calculate current error
     pid_data_.current_error = target - current;
-    pid_data_.set_val = target;
-    pid_data_.fdb_val = current;
 
     // 2. Calculate Proportional term
     pid_data_.p_out = pid_data_.kp * pid_data_.current_error;
@@ -210,18 +199,6 @@ public:
     // 7. Apply output limits
     pidLimitMax();
 
-    // --- Original User Code ---
-    // pid_data_.last_last_error = pid_data_.last_error;
-    // pid_data_.last_error = pid_data_.current_error;
-
-    // pid_data_.set_val = target;
-    // pid_data_.fdb_val = current;
-    // pid_data_.current_error = target - current;
-
-    // pid_data_.p_out = pid_data_.kp * (pid_data_.current_error - pid_data_.last_error);
-    // pid_data_.i_out = pid_data_.ki * pid_data_.current_error;
-    // pid_data_.d_out = pid_data_.kd * (pid_data_.current_error - 2 * pid_data_.last_error + pid_data_.last_last_error);
-    // pid_data_.out = pid_data_.p_out + pid_data_.i_out + pid_data_.d_out;
 
     return pid_data_.out;
   }
@@ -288,7 +265,7 @@ private:
     if (ec) {
       if (ec == boost::asio::error::operation_aborted)
         return; // Timer was cancelled, normal exit
-      std::cerr << "Speed timer error: " << ec.message() << std::endl;
+      LOG_ERROR("Speed timer error: " << ec.message());
       return;
     }
 
@@ -375,7 +352,6 @@ private:
 
   bool forward_need_flip_ = false;
 
-  inline static bool isGpioInitialized_ = false;
 
   // 编码器核心状态变量
   std::atomic<int16_t> encoder_steps_{0};

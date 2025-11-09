@@ -17,6 +17,7 @@
 
 // Project Headers
 #include "motion_sovler.hpp"
+#include "motor.hpp" // 引入日志宏
 
 using json = nlohmann::json;
 
@@ -24,11 +25,11 @@ using json = nlohmann::json;
 enum MotorID { FRONT_LEFT = 0, FRONT_RIGHT = 1, BACK_LEFT = 2, BACK_RIGHT = 3 };
 
 // MQTT and Threading
-const std::string SERVER_ADDRESS("tcp://localhost:1883");
-const std::string CLIENT_ID("pid_debugger");
-const std::string TOPIC_CONTROL("pid/control");
-const std::string TOPIC_STATUS("pid/status");
-const int QOS = 1;
+// const std::string SERVER_ADDRESS("tcp://localhost:1883"); // 从配置文件加载
+// const std::string CLIENT_ID("pid_debugger"); // 从配置文件加载
+// const std::string TOPIC_CONTROL("pid/control"); // 从配置文件加载
+// const std::string TOPIC_STATUS("pid/status"); // 从配置文件加载
+// const int QOS = 1; // 从配置文件加载
 
 std::atomic<MotorID> target_motor_id(FRONT_LEFT);
 std::atomic<double> target_speed(0.0);
@@ -40,15 +41,19 @@ class callback : public virtual mqtt::callback {
   std::vector<mini_infantry::Motor *> &motors_;
 
   void connected(const std::string &cause) override {
-    std::cout << "\nConnection successful." << std::endl;
-    std::cout << "\nSubscribing to topic '" << TOPIC_CONTROL << "' for client " << CLIENT_ID << " using QoS" << QOS << "\n" << std::endl;
+    LOG_INFO("\nConnection successful.");
+    YAML::Node config = YAML::LoadFile("/home/jaren/projects/mini_infantry/config/pid_cinfig.yaml");
+    const std::string TOPIC_CONTROL = config["MqttConfig"]["topic_control"].as<std::string>();
+    const std::string CLIENT_ID = config["MqttConfig"]["client_id"].as<std::string>();
+    const int QOS = config["MqttConfig"]["qos"].as<int>();
+    LOG_INFO("\nSubscribing to topic '" << TOPIC_CONTROL << "' for client " << CLIENT_ID << " using QoS" << QOS << "\n");
     cli_.subscribe(TOPIC_CONTROL, QOS);
   }
 
   void connection_lost(const std::string &cause) override {
-    std::cout << "\nConnection lost" << std::endl;
+    LOG_INFO("\nConnection lost");
     if (!cause.empty())
-      std::cout << "\tcause: " << cause << std::endl;
+      LOG_INFO("\tcause: " << cause);
   }
 
   void message_arrived(mqtt::const_message_ptr msg) override {
@@ -73,7 +78,7 @@ class callback : public virtual mqtt::callback {
         motors_[motor_idx]->encoderSetEncoderIsFlip(encoder_is_flip);
 
         if (save_params) {
-          std::cout << "Saving parameters for motor " << motor_idx << "..." << std::endl;
+          LOG_INFO("Saving parameters for motor " << motor_idx << "...");
           YAML::Node config = YAML::LoadFile("/home/jaren/projects/mini_infantry/config/pid_cinfig.yaml");
           std::string motor_name;
           switch (static_cast<MotorID>(motor_idx)) {
@@ -99,16 +104,16 @@ class callback : public virtual mqtt::callback {
             std::ofstream fout("/home/jaren/projects/mini_infantry/config/pid_cinfig.yaml");
             fout << config;
             fout.close();
-            std::cout << "Parameters saved." << std::endl;
+            LOG_INFO("Parameters saved.");
           }
         }
       } else {
-        std::cerr << "Invalid motor index received: " << static_cast<int>(motor_idx) << std::endl;
+        LOG_ERROR("Invalid motor index received: " << static_cast<int>(motor_idx));
       }
     } catch (const json::parse_error &e) {
-      std::cerr << "JSON parse error: " << e.what() << std::endl;
+      LOG_ERROR("JSON parse error: " << e.what());
     } catch (const std::exception &e) {
-      std::cerr << "Error processing message: " << e.what() << std::endl;
+      LOG_ERROR("Error processing message: " << e.what());
     }
   }
 
@@ -119,34 +124,59 @@ public:
 int main() {
   boost::asio::io_context io_ctx;
 
-  mini_infantry::Motor motor_front_left(io_ctx, PWM_PIN_WIR_1, 0, 2, 8, 9);
-  mini_infantry::Motor motor_front_right(io_ctx, PWM_PIN_WIR_23, 13, 14, 21, 22);
-  mini_infantry::Motor motor_back_left(io_ctx, PWM_PIN_WIR_26, 10, 6, 31, 11);
-  mini_infantry::Motor motor_back_right(io_ctx, PWM_PIN_WIR_24, 27, 29, 25, 28);
+  if (wiringPiSetup() == -1) {
+    LOG_ERROR("Failed to initialize wiringPi");
+    return 1;
+  }
+  LOG_INFO("wiringPi initialized successfully");
+
+  YAML::Node main_config = YAML::LoadFile("/home/jaren/projects/mini_infantry/config/pid_cinfig.yaml");
+  int speed_buffer_size = main_config["MotorConfig"]["speed_buffer_size"].as<int>();
+
+  mini_infantry::Motor motor_front_left(io_ctx, main_config["MotorPins"]["motor_front_left"]["pwm_pin"].as<int>(),
+                                         main_config["MotorPins"]["motor_front_left"]["encoder_pinA"].as<int>(),
+                                         main_config["MotorPins"]["motor_front_left"]["encoder_pinB"].as<int>(),
+                                         main_config["MotorPins"]["motor_front_left"]["motor_in1"].as<int>(),
+                                         main_config["MotorPins"]["motor_front_left"]["motor_in2"].as<int>());
+  mini_infantry::Motor motor_front_right(io_ctx, main_config["MotorPins"]["motor_front_right"]["pwm_pin"].as<int>(),
+                                          main_config["MotorPins"]["motor_front_right"]["encoder_pinA"].as<int>(),
+                                          main_config["MotorPins"]["motor_front_right"]["encoder_pinB"].as<int>(),
+                                          main_config["MotorPins"]["motor_front_right"]["motor_in1"].as<int>(),
+                                          main_config["MotorPins"]["motor_front_right"]["motor_in2"].as<int>());
+  mini_infantry::Motor motor_back_left(io_ctx, main_config["MotorPins"]["motor_back_left"]["pwm_pin"].as<int>(),
+                                        main_config["MotorPins"]["motor_back_left"]["encoder_pinA"].as<int>(),
+                                        main_config["MotorPins"]["motor_back_left"]["encoder_pinB"].as<int>(),
+                                        main_config["MotorPins"]["motor_back_left"]["motor_in1"].as<int>(),
+                                        main_config["MotorPins"]["motor_back_left"]["motor_in2"].as<int>());
+  mini_infantry::Motor motor_back_right(io_ctx, main_config["MotorPins"]["motor_back_right"]["pwm_pin"].as<int>(),
+                                         main_config["MotorPins"]["motor_back_right"]["encoder_pinA"].as<int>(),
+                                         main_config["MotorPins"]["motor_back_right"]["encoder_pinB"].as<int>(),
+                                         main_config["MotorPins"]["motor_back_right"]["motor_in1"].as<int>(),
+                                         main_config["MotorPins"]["motor_back_right"]["motor_in2"].as<int>());
 
   std::vector<mini_infantry::Motor *> motors = {&motor_front_left, &motor_front_right, &motor_back_left, &motor_back_right};
 
-  YAML::Node config = YAML::LoadFile("/home/jaren/projects/mini_infantry/config/pid_cinfig.yaml");
-  motor_front_left.controlSetForwoardIsFlip(config["Motors"]["motor_front_left"]["forward_is_flip"].as<bool>());
-  motor_front_left.encoderSetEncoderIsFlip(config["Motors"]["motor_front_left"]["encoder_is_flip"].as<bool>());
-  motor_front_right.controlSetForwoardIsFlip(config["Motors"]["motor_front_right"]["forward_is_flip"].as<bool>());
-  motor_front_right.encoderSetEncoderIsFlip(config["Motors"]["motor_front_right"]["encoder_is_flip"].as<bool>());
-  motor_back_left.controlSetForwoardIsFlip(config["Motors"]["motor_back_left"]["forward_is_flip"].as<bool>());
-  motor_back_left.encoderSetEncoderIsFlip(config["Motors"]["motor_back_left"]["encoder_is_flip"].as<bool>());
-  motor_back_right.controlSetForwoardIsFlip(config["Motors"]["motor_back_right"]["forward_is_flip"].as<bool>());
-  motor_back_right.encoderSetEncoderIsFlip(config["Motors"]["motor_back_right"]["encoder_is_flip"].as<bool>());
+  // YAML::Node config = YAML::LoadFile("/home/jaren/projects/mini_infantry/config/pid_cinfig.yaml"); // 已经定义过
+  motor_front_left.controlSetForwoardIsFlip(main_config["Motors"]["motor_front_left"]["forward_is_flip"].as<bool>());
+  motor_front_left.encoderSetEncoderIsFlip(main_config["Motors"]["motor_front_left"]["encoder_is_flip"].as<bool>());
+  motor_front_right.controlSetForwoardIsFlip(main_config["Motors"]["motor_front_right"]["forward_is_flip"].as<bool>());
+  motor_front_right.encoderSetEncoderIsFlip(main_config["Motors"]["motor_front_right"]["encoder_is_flip"].as<bool>());
+  motor_back_left.controlSetForwoardIsFlip(main_config["Motors"]["motor_back_left"]["forward_is_flip"].as<bool>());
+  motor_back_left.encoderSetEncoderIsFlip(main_config["Motors"]["motor_back_left"]["encoder_is_flip"].as<bool>());
+  motor_back_right.controlSetForwoardIsFlip(main_config["Motors"]["motor_back_right"]["forward_is_flip"].as<bool>());
+  motor_back_right.encoderSetEncoderIsFlip(main_config["Motors"]["motor_back_right"]["encoder_is_flip"].as<bool>());
 
-  motors[FRONT_LEFT]->pidInit(config["Motors"]["motor_front_left"]["kp"].as<double>(),
-                              config["Motors"]["motor_front_left"]["ki"].as<double>(),
-                              config["Motors"]["motor_front_left"]["kd"].as<double>());
-  motors[FRONT_RIGHT]->pidInit(config["Motors"]["motor_front_right"]["kp"].as<double>(),
-                               config["Motors"]["motor_front_right"]["ki"].as<double>(),
-                               config["Motors"]["motor_front_right"]["kd"].as<double>());
-  motors[BACK_LEFT]->pidInit(config["Motors"]["motor_back_left"]["kp"].as<double>(), config["Motors"]["motor_back_left"]["ki"].as<double>(),
-                             config["Motors"]["motor_back_left"]["kd"].as<double>());
-  motors[BACK_RIGHT]->pidInit(config["Motors"]["motor_back_right"]["kp"].as<double>(),
-                              config["Motors"]["motor_back_right"]["ki"].as<double>(),
-                              config["Motors"]["motor_back_right"]["kd"].as<double>());
+  motors[FRONT_LEFT]->pidInit(main_config["Motors"]["motor_front_left"]["kp"].as<double>(),
+                               main_config["Motors"]["motor_front_left"]["ki"].as<double>(),
+                               main_config["Motors"]["motor_front_left"]["kd"].as<double>());
+  motors[FRONT_RIGHT]->pidInit(main_config["Motors"]["motor_front_right"]["kp"].as<double>(),
+                               main_config["Motors"]["motor_front_right"]["ki"].as<double>(),
+                               main_config["Motors"]["motor_front_right"]["kd"].as<double>());
+  motors[BACK_LEFT]->pidInit(main_config["Motors"]["motor_back_left"]["kp"].as<double>(), main_config["Motors"]["motor_back_left"]["ki"].as<double>(),
+                             main_config["Motors"]["motor_back_left"]["kd"].as<double>());
+  motors[BACK_RIGHT]->pidInit(main_config["Motors"]["motor_back_right"]["kp"].as<double>(),
+                               main_config["Motors"]["motor_back_right"]["ki"].as<double>(),
+                               main_config["Motors"]["motor_back_right"]["kd"].as<double>());
 
   for (auto &motor : motors) {
     // if (motor != &motor_back_right) {
@@ -156,6 +186,11 @@ int main() {
     motor->run(true); // Start with auto speed calculation enabled
   }
 
+  const std::string SERVER_ADDRESS = main_config["MqttConfig"]["server_address"].as<std::string>();
+  const std::string CLIENT_ID = main_config["MqttConfig"]["client_id"].as<std::string>();
+  const std::string TOPIC_STATUS = main_config["MqttConfig"]["topic_status"].as<std::string>();
+  const int QOS = main_config["MqttConfig"]["qos"].as<int>();
+
   mqtt::async_client client(SERVER_ADDRESS, CLIENT_ID);
   callback cb(client, motors);
   client.set_callback(cb);
@@ -163,14 +198,14 @@ int main() {
   auto connOpts = mqtt::connect_options_builder().clean_session().will(mqtt::message("test", "LWT", QOS)).finalize();
 
   try {
-    std::cout << "Connecting to the MQTT server..." << std::endl;
+    LOG_INFO("Connecting to the MQTT server...");
     client.connect(connOpts)->wait();
   } catch (const mqtt::exception &exc) {
-    std::cerr << "Error: " << exc.what() << std::endl;
+    LOG_ERROR("Error: " << exc.what());
     return 1;
   }
 
-  std::cout << "MQTT client connected. Starting event loop." << std::endl;
+  LOG_INFO("MQTT client connected. Starting event loop.");
 
   boost::asio::steady_timer pid_timer(io_ctx);
   int pid_period_ms = 20; // PID calculation interval
@@ -180,7 +215,7 @@ int main() {
     if (ec) {
       if (ec == boost::asio::error::operation_aborted)
         return;
-      std::cerr << "PID timer error: " << ec.message() << std::endl;
+      LOG_ERROR("PID timer error: " << ec.message());
       return;
     }
 
@@ -200,7 +235,7 @@ int main() {
 
         if (i == current_target_motor) {
 
-          std::cout << "Motor " << i << " speed: " << speed_to_set << " pwm: " << pwm_value << std::endl;
+          LOG_INFO("Motor " << i << " speed: " << speed_to_set << " pwm: " << pwm_value);
 
           json status_msg;
           status_msg["motor_id"] = i;
@@ -222,7 +257,7 @@ int main() {
   // Handle graceful shutdown
   boost::asio::signal_set signals(io_ctx, SIGINT, SIGTERM);
   signals.async_wait([&](const boost::system::error_code &, int) {
-    std::cout << "\nCaught signal, shutting down gracefully..." << std::endl;
+    LOG_INFO("\nCaught signal, shutting down gracefully...");
     io_ctx.stop();
   });
 
@@ -230,11 +265,11 @@ int main() {
   io_ctx.run();
 
   // Cleanup
-  std::cout << "Disconnecting from the MQTT server..." << std::endl;
+  LOG_INFO("Disconnecting from the MQTT server...");
   if (client.is_connected()) {
     client.disconnect()->wait();
   }
-  std::cout << "Clean up and exit." << std::endl;
+  LOG_INFO("Clean up and exit.");
 
   return 0;
 }

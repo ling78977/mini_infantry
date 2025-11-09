@@ -1,3 +1,37 @@
+MqttConfig:
+  server_address: tcp://localhost:1883
+  client_id: pid_debugger
+  topic_control: pid/control
+  topic_status: pid/status
+  qos: 1
+MotorPins:
+  motor_front_left:
+    pwm_pin: 1
+    encoder_pinA: 0
+    encoder_pinB: 2
+    motor_in1: 8
+    motor_in2: 9
+  motor_front_right:
+    pwm_pin: 23
+    encoder_pinA: 13
+    encoder_pinB: 14
+    motor_in1: 21
+    motor_in2: 22
+  motor_back_left:
+    pwm_pin: 26
+    encoder_pinA: 10
+    encoder_pinB: 6
+    motor_in1: 31
+    motor_in2: 11
+  motor_back_right:
+    pwm_pin: 24
+    encoder_pinA: 27
+    encoder_pinB: 29
+    motor_in1: 25
+    motor_in2: 28
+MotorConfig:
+  max_motors: 4
+  speed_buffer_size: 3
 Motors:
   motor_front_left:
     kp: 64.700000000000003
@@ -19,7 +53,7 @@ Motors:
     encoder_is_flip: false
   motor_back_right:
     kp: 59.799999999999997
-    ki: 24.5
+    ki: 31.100000000000001
     kd: 61.299999999999997
     forward_is_flip: false
     encoder_is_flip: false

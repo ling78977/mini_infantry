@@ -25,7 +25,6 @@ int main() {
 
     for (auto &motor : motors) {
       motor->pidInit();
-      motor->setDirectMode(true);
       motor->run(); // Default: auto speed calculation is OFF
     }
 

@@ -12,9 +12,10 @@
 #include <vector>
 #include <wiringPi.h>
 #define PWM_PIN_WIR_1 1
-#define PWM_PIN_WIR_26 26
 #define PWM_PIN_WIR_23 23
 #define PWM_PIN_WIR_24 24
+#define PWM_PIN_WIR_26 26
+
 
 #define PWM_PIN_BCM_12 12
 #define PWM_PIN_BCM_13 13
@@ -239,11 +240,7 @@ public:
     // std::cout << "time_diff_ms: " << time_diff_ms << ", this_steps: " << this_steps << std::endl;
     last_update_time_ms_ = this_time_ms;
     float encode_number_of_turns;
-    if (use_direct_mode_) {
-      encode_number_of_turns = this_steps / (float)(SINGLE_TURN_PULSE * REDUCTION_RATIO * 4);
-    } else {
-      encode_number_of_turns = this_steps / (float)(SINGLE_TURN_PULSE * REDUCTION_RATIO);
-    }
+    encode_number_of_turns = this_steps / (float)(SINGLE_TURN_PULSE * REDUCTION_RATIO);
 
     auto encode_distance = encode_number_of_turns * WHEEL_CIRCUMFERENCE;
 
@@ -270,12 +267,6 @@ public:
 
   void encoderSetEncoderIsFlip(bool need_flip) { encoder_need_flip_ = need_flip; }
 
-  void setDirectMode(bool enable) {
-    use_direct_mode_ = enable;
-    // When switching, it might be good to reset the state
-    encoder_steps_ = 0;
-    encoder_current_state_ = Idle;
-  }
 
   void stopSpeedCalculation() { speed_timer_.cancel(); }
 
@@ -341,33 +332,15 @@ private:
     encoder_current_state_ = Idle;
   }
   void encoderAChanged() {
-    if (use_direct_mode_) {
-      // x4 decoding logic for pin A change
-      if (digitalRead(encoder_pinB_) != digitalRead(encoder_pinA_)) {
-        encoder_steps_++;
-      } else {
-        encoder_steps_--;
-      }
-    } else {
-      // Original state machine logic
-      encoderUpdateEdge();
-      encoderChangeState(encoder_current_edge_);
-    }
+    // Original state machine logic
+    encoderUpdateEdge();
+    encoderChangeState(encoder_current_edge_);
   }
 
   void encoderBChanged() {
-    if (use_direct_mode_) {
-      // x4 decoding logic for pin B change
-      if (digitalRead(encoder_pinA_) == digitalRead(encoder_pinB_)) {
-        encoder_steps_++;
-      } else {
-        encoder_steps_--;
-      }
-    } else {
-      // Original state machine logic
-      encoderUpdateEdge();
-      encoderChangeState(encoder_current_edge_);
-    }
+    // Original state machine logic
+    encoderUpdateEdge();
+    encoderChangeState(encoder_current_edge_);
   }
 
   void pidLimitMax() {
@@ -413,7 +386,6 @@ private:
 
   PidData pid_data_{};
   bool is_pid_initialized_ = false;
-  bool use_direct_mode_ = false;
 
   boost::asio::steady_timer speed_timer_;
 

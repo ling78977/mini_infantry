@@ -149,9 +149,9 @@ int main() {
                               config["Motors"]["motor_back_right"]["kd"].as<double>());
 
   for (auto &motor : motors) {
-    if (motor != &motor_back_right) {
-      continue;
-    }
+    // if (motor != &motor_back_right) {
+    //   continue;
+    // }
     // motor->setDirectMode(true);
     motor->run(true); // Start with auto speed calculation enabled
   }
@@ -200,7 +200,7 @@ int main() {
 
         if (i == current_target_motor) {
 
-          // std::cout << "Motor " << i << " speed: " << speed_to_set << " pwm: " << pwm_value << std::endl;
+          std::cout << "Motor " << i << " speed: " << speed_to_set << " pwm: " << pwm_value << std::endl;
 
           json status_msg;
           status_msg["motor_id"] = i;

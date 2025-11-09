@@ -39,15 +39,15 @@ std::mutex motor_data_mutex;
 class callback : public virtual mqtt::callback {
   mqtt::async_client &cli_;
   std::vector<mini_infantry::Motor *> &motors_;
+  const std::string topic_control_;
+  const std::string client_id_;
+  const int qos_;
+  YAML::Node config_node_; // Store the config node for saving parameters
 
   void connected(const std::string &cause) override {
     LOG_INFO("\nConnection successful.");
-    YAML::Node config = YAML::LoadFile("/home/jaren/projects/mini_infantry/config/pid_cinfig.yaml");
-    const std::string TOPIC_CONTROL = config["MqttConfig"]["topic_control"].as<std::string>();
-    const std::string CLIENT_ID = config["MqttConfig"]["client_id"].as<std::string>();
-    const int QOS = config["MqttConfig"]["qos"].as<int>();
-    LOG_INFO("\nSubscribing to topic '" << TOPIC_CONTROL << "' for client " << CLIENT_ID << " using QoS" << QOS << "\n");
-    cli_.subscribe(TOPIC_CONTROL, QOS);
+    LOG_INFO("\nSubscribing to topic '" << topic_control_ << "' for client " << client_id_ << " using QoS" << qos_ << "\n");
+    cli_.subscribe(topic_control_, qos_);
   }
 
   void connection_lost(const std::string &cause) override {
@@ -79,7 +79,7 @@ class callback : public virtual mqtt::callback {
 
         if (save_params) {
           LOG_INFO("Saving parameters for motor " << motor_idx << "...");
-          YAML::Node config = YAML::LoadFile("/home/jaren/projects/mini_infantry/config/pid_cinfig.yaml");
+          // Use the stored config_node_
           std::string motor_name;
           switch (static_cast<MotorID>(motor_idx)) {
           case FRONT_LEFT:
@@ -96,13 +96,13 @@ class callback : public virtual mqtt::callback {
             break;
           }
           if (!motor_name.empty()) {
-            config["Motors"][motor_name]["kp"] = kp;
-            config["Motors"][motor_name]["ki"] = ki;
-            config["Motors"][motor_name]["kd"] = kd;
-            config["Motors"][motor_name]["forward_is_flip"] = forward_is_flip;
-            config["Motors"][motor_name]["encoder_is_flip"] = encoder_is_flip;
+            config_node_["Motors"][motor_name]["kp"] = kp;
+            config_node_["Motors"][motor_name]["ki"] = ki;
+            config_node_["Motors"][motor_name]["kd"] = kd;
+            config_node_["Motors"][motor_name]["forward_is_flip"] = forward_is_flip;
+            config_node_["Motors"][motor_name]["encoder_is_flip"] = encoder_is_flip;
             std::ofstream fout("/home/jaren/projects/mini_infantry/config/pid_cinfig.yaml");
-            fout << config;
+            fout << config_node_; // Write the modified config_node_
             fout.close();
             LOG_INFO("Parameters saved.");
           }
@@ -118,7 +118,12 @@ class callback : public virtual mqtt::callback {
   }
 
 public:
-  callback(mqtt::async_client &cli, std::vector<mini_infantry::Motor *> &motors) : cli_(cli), motors_(motors) {}
+  callback(mqtt::async_client &cli, std::vector<mini_infantry::Motor *> &motors, const YAML::Node& config)
+      : cli_(cli), motors_(motors),
+        topic_control_(config["MqttConfig"]["topic_control"].as<std::string>()),
+        client_id_(config["MqttConfig"]["client_id"].as<std::string>()),
+        qos_(config["MqttConfig"]["qos"].as<int>()),
+        config_node_(config) {}
 };
 
 int main() {
@@ -192,7 +197,7 @@ int main() {
   const int QOS = main_config["MqttConfig"]["qos"].as<int>();
 
   mqtt::async_client client(SERVER_ADDRESS, CLIENT_ID);
-  callback cb(client, motors);
+  callback cb(client, motors, main_config); // Pass main_config to the callback constructor
   client.set_callback(cb);
 
   auto connOpts = mqtt::connect_options_builder().clean_session().will(mqtt::message("test", "LWT", QOS)).finalize();

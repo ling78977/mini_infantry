@@ -47,7 +47,7 @@ Motors:
     encoder_is_flip: false
   motor_back_left:
     kp: 61.200000000000003
-    ki: 65
+    ki: 56.5
     kd: 59.200000000000003
     forward_is_flip: true
     encoder_is_flip: false

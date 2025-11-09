@@ -1,5 +1,5 @@
 #pragma once
-// #include "pid_controller.hpp"
+#include "pid_controller.hpp" // 引入 PidController 类
 // #include "rotary_encoder.hpp"
 #include <atomic>
 #include <boost/asio.hpp>
@@ -50,21 +50,6 @@ enum TransitionResult {
   StepPlus = 7,
   StepMinus = 8
 };
-struct PidData {
-  double kp;
-  double ki;
-  double kd;
-
-  double max_out = 99.0;
-  double max_iout;
-
-  int out; // pwm -100~100
-  double p_out;
-  double i_out;
-  double d_out;
-  double last_error;
-  double current_error;
-};
 // 获取当前时间的毫秒数（自系统启动或 epoch 以来）
 inline long long get_current_ms() {
   return std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -74,7 +59,7 @@ inline long long get_current_ms() {
 class Motor {
 public:
   Motor(boost::asio::io_context &io_ctx, int pwm_pin, int encoder_pinA, int encoder_pinB, int motor_in1, int motor_in2)
-      : speed_timer_(io_ctx) {
+      : speed_timer_(io_ctx), pid_controller_() { // 初始化 PidController
     // Assign an instance index from the pool
     instance_index_ = -1;
     for (int i = 0; i < MAX_MOTORS; ++i) {
@@ -122,26 +107,16 @@ public:
     LOG_INFO("Rotary Encoder started on pins " << encoder_pinA_ << " and " << encoder_pinB_);
   }
   void pidInit(double kp = 100.0, double ki = 100.0, double kd = 100.0, double max_iout = 99.0) {
-    pid_data_.kp = kp;
-    pid_data_.ki = ki;
-    pid_data_.kd = kd;
-    pid_data_.max_iout = max_iout;
-    pid_data_.last_error = 0.0;
-    pid_data_.current_error = 0.0;
-    pid_data_.i_out = 0.0;
-    is_pid_initialized_ = true;
+    pid_controller_.pidInit(kp, ki, kd, max_iout);
   }
   void pidSet(double kp, double ki, double kd) {
-    pid_data_.kp = kp;
-    pid_data_.ki = ki;
-    pid_data_.kd = kd;
-
-    is_pid_initialized_ = true;
+    pid_controller_.pidSet(kp, ki, kd);
   }
   void run(bool auto_calc_speed = false, int speed_calc_period_ms = 15) {
-    if (!is_pid_initialized_) {
-      throw std::runtime_error("PID not initialized!");
-    }
+    // PidController 内部管理其初始化状态，这里不再需要 is_pid_initialized_
+    // if (!is_pid_initialized_) {
+    //   throw std::runtime_error("PID not initialized!");
+    // }
 
     if (auto_calc_speed) {
       speed_timer_.expires_after(std::chrono::milliseconds(speed_calc_period_ms));
@@ -172,35 +147,7 @@ public:
   int encoderGetSteps() const { return encoder_steps_.load(); }
 
   int pidCalculate(double target, double current) {
-    // 1. Calculate current error
-    pid_data_.current_error = target - current;
-
-    // 2. Calculate Proportional term
-    pid_data_.p_out = pid_data_.kp * pid_data_.current_error;
-
-    // 3. Calculate Integral term with anti-windup
-    pid_data_.i_out += pid_data_.ki * pid_data_.current_error;
-    // Clamp the integral term
-    if (pid_data_.i_out > pid_data_.max_iout) {
-      pid_data_.i_out = pid_data_.max_iout;
-    } else if (pid_data_.i_out < -pid_data_.max_iout) {
-      pid_data_.i_out = -pid_data_.max_iout;
-    }
-
-    // 4. Calculate Derivative term
-    pid_data_.d_out = pid_data_.kd * (pid_data_.current_error - pid_data_.last_error);
-
-    // 5. Calculate total output
-    pid_data_.out = static_cast<int>(pid_data_.p_out + pid_data_.i_out + pid_data_.d_out);
-
-    // 6. Update error for next iteration
-    pid_data_.last_error = pid_data_.current_error;
-
-    // 7. Apply output limits
-    pidLimitMax();
-
-
-    return pid_data_.out;
+    return pid_controller_.pidCalculate(target, current);
   }
 
   void encoderUpdateSpeed() {
@@ -333,10 +280,6 @@ private:
     encoderChangeState(encoder_current_edge_);
   }
 
-  void pidLimitMax() {
-    pid_data_.out = pid_data_.out > pid_data_.max_out ? pid_data_.max_out : pid_data_.out;
-    pid_data_.out = pid_data_.out < -pid_data_.max_out ? -pid_data_.max_out : pid_data_.out;
-  }
 
   // 状态转换表
   static constexpr int transitions_[7][4] = {
@@ -373,8 +316,7 @@ private:
   int motor_in2_ = -1;
   int instance_index_ = -1;
 
-  PidData pid_data_{};
-  bool is_pid_initialized_ = false;
+  PidController pid_controller_; // PidController 实例
 
   boost::asio::steady_timer speed_timer_;
 

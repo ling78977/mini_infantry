@@ -80,7 +80,7 @@ public:
     pid_data_.kp = kp;
     pid_data_.ki = ki;
     pid_data_.kd = kd;
-    LOG_INFO("PidController parameters set: Kp=" << kp << ", Ki=" << ki << ", Kd=" << kd);
+    // LOG_INFO("PidController parameters set: Kp=" << kp << ", Ki=" << ki << ", Kd=" << kd);
   }
 
   /**

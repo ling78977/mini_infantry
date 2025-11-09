@@ -144,20 +144,20 @@ int main() {
                                          main_config["MotorPins"]["motor_front_left"]["motor_in1"].as<int>(),
                                          main_config["MotorPins"]["motor_front_left"]["motor_in2"].as<int>());
   mini_infantry::Motor motor_front_right(io_ctx, main_config["MotorPins"]["motor_front_right"]["pwm_pin"].as<int>(),
-                                          main_config["MotorPins"]["motor_front_right"]["encoder_pinA"].as<int>(),
-                                          main_config["MotorPins"]["motor_front_right"]["encoder_pinB"].as<int>(),
-                                          main_config["MotorPins"]["motor_front_right"]["motor_in1"].as<int>(),
-                                          main_config["MotorPins"]["motor_front_right"]["motor_in2"].as<int>());
+                                           main_config["MotorPins"]["motor_front_right"]["encoder_pinA"].as<int>(),
+                                           main_config["MotorPins"]["motor_front_right"]["encoder_pinB"].as<int>(),
+                                           main_config["MotorPins"]["motor_front_right"]["motor_in1"].as<int>(),
+                                           main_config["MotorPins"]["motor_front_right"]["motor_in2"].as<int>());
   mini_infantry::Motor motor_back_left(io_ctx, main_config["MotorPins"]["motor_back_left"]["pwm_pin"].as<int>(),
-                                        main_config["MotorPins"]["motor_back_left"]["encoder_pinA"].as<int>(),
-                                        main_config["MotorPins"]["motor_back_left"]["encoder_pinB"].as<int>(),
-                                        main_config["MotorPins"]["motor_back_left"]["motor_in1"].as<int>(),
-                                        main_config["MotorPins"]["motor_back_left"]["motor_in2"].as<int>());
+                                         main_config["MotorPins"]["motor_back_left"]["encoder_pinA"].as<int>(),
+                                         main_config["MotorPins"]["motor_back_left"]["encoder_pinB"].as<int>(),
+                                         main_config["MotorPins"]["motor_back_left"]["motor_in1"].as<int>(),
+                                         main_config["MotorPins"]["motor_back_left"]["motor_in2"].as<int>());
   mini_infantry::Motor motor_back_right(io_ctx, main_config["MotorPins"]["motor_back_right"]["pwm_pin"].as<int>(),
-                                         main_config["MotorPins"]["motor_back_right"]["encoder_pinA"].as<int>(),
-                                         main_config["MotorPins"]["motor_back_right"]["encoder_pinB"].as<int>(),
-                                         main_config["MotorPins"]["motor_back_right"]["motor_in1"].as<int>(),
-                                         main_config["MotorPins"]["motor_back_right"]["motor_in2"].as<int>());
+                                           main_config["MotorPins"]["motor_back_right"]["encoder_pinA"].as<int>(),
+                                           main_config["MotorPins"]["motor_back_right"]["encoder_pinB"].as<int>(),
+                                           main_config["MotorPins"]["motor_back_right"]["motor_in1"].as<int>(),
+                                           main_config["MotorPins"]["motor_back_right"]["motor_in2"].as<int>());
 
   std::vector<mini_infantry::Motor *> motors = {&motor_front_left, &motor_front_right, &motor_back_left, &motor_back_right};
 
@@ -240,7 +240,7 @@ int main() {
 
         if (i == current_target_motor) {
 
-          LOG_INFO("Motor " << i << " speed: " << speed_to_set << " pwm: " << pwm_value);
+          // LOG_INFO("Motor " << i << " speed: " << speed_to_set << " pwm: " << pwm_value);
 
           json status_msg;
           status_msg["motor_id"] = i;

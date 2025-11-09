@@ -1,6 +1,6 @@
 #pragma once
 #include "pid_controller.hpp" // 引入 PidController 类
-// #include "rotary_encoder.hpp"
+#include "rotary_encoder.hpp" // 引入 RotaryEncoder 类
 #include <atomic>
 #include <boost/asio.hpp>
 #include <cmath>
@@ -36,20 +36,6 @@
 #define WHEEL_CIRCUMFERENCE (WHEEL_DIAMETER * PI)
 
 namespace mini_infantry {
-enum State { Idle = 0, Ccw1 = 1, Ccw2 = 2, Ccw3 = 3, Cw1 = 4, Cw2 = 5, Cw3 = 6 };
-
-// 转换结果枚举
-enum TransitionResult {
-  StateIdle = 0,
-  StateCcw1 = 1,
-  StateCcw2 = 2,
-  StateCcw3 = 3,
-  StateCw1 = 4,
-  StateCw2 = 5,
-  StateCw3 = 6,
-  StepPlus = 7,
-  StepMinus = 8
-};
 // 获取当前时间的毫秒数（自系统启动或 epoch 以来）
 inline long long get_current_ms() {
   return std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -59,52 +45,25 @@ inline long long get_current_ms() {
 class Motor {
 public:
   Motor(boost::asio::io_context &io_ctx, int pwm_pin, int encoder_pinA, int encoder_pinB, int motor_in1, int motor_in2)
-      : speed_timer_(io_ctx), pid_controller_() { // 初始化 PidController
-    // Assign an instance index from the pool
-    instance_index_ = -1;
-    for (int i = 0; i < MAX_MOTORS; ++i) {
-      if (motor_instances_[i] == nullptr) {
-        instance_index_ = i;
-        motor_instances_[i] = this;
-        break;
-      }
-    }
-    if (instance_index_ == -1) {
-      LOG_ERROR("Maximum number of Motor instances reached.");
-      throw std::runtime_error("Maximum number of Motor instances reached.");
-    }
-
+      : speed_timer_(io_ctx), pid_controller_(), rotary_encoder_(encoder_pinA, encoder_pinB) { // 初始化 PidController 和 RotaryEncoder
     pwm_pin_ = pwm_pin;
-    encoder_pinA_ = encoder_pinA;
-    encoder_pinB_ = encoder_pinB;
     motor_in1_ = motor_in1;
     motor_in2_ = motor_in2;
 
     pinMode(motor_in1, OUTPUT);
     pinMode(motor_in2, OUTPUT);
-    pinMode(encoder_pinA_, INPUT);
-    pinMode(encoder_pinB_, INPUT);
 
     pinMode(pwm_pin_, PWM_OUTPUT);
     pwmSetMode(PWM_MODE_MS);
     pwmSetRange(100);
     pwmSetClock(13);
-    digitalWrite(motor_in1, HIGH);
-    digitalWrite(motor_in2, HIGH);
-    pullUpDnControl(encoder_pinA_, PUD_UP);
-    pullUpDnControl(encoder_pinB_, PUD_UP);
+    // Initialize motor direction pins to LOW to ensure motor is off
+    digitalWrite(motor_in1, LOW);
+    digitalWrite(motor_in2, LOW);
     pwmWrite(pwm_pin_, 0);
     speed_buffer_.resize(speed_buffer_size_, 0.0f);
 
-    encoderUpdateEdge(); // 初始化编码器边缘状态
-
-    if (wiringPiISR(encoder_pinA_, INT_EDGE_BOTH, isr_A_funcs_[instance_index_]) != 0) {
-      throw std::runtime_error("Failed to setup ISR for pin A");
-    }
-    if (wiringPiISR(encoder_pinB_, INT_EDGE_BOTH, isr_B_funcs_[instance_index_]) != 0) {
-      throw std::runtime_error("Failed to setup ISR for pin B");
-    }
-    LOG_INFO("Rotary Encoder started on pins " << encoder_pinA_ << " and " << encoder_pinB_);
+    LOG_INFO("Motor initialized with pwm_pin: " << pwm_pin_ << ", encoder_pinA: " << encoder_pinA << ", encoder_pinB: " << encoder_pinB);
   }
   void pidInit(double kp = 100.0, double ki = 100.0, double kd = 100.0, double max_iout = 99.0) {
     pid_controller_.pidInit(kp, ki, kd, max_iout);
@@ -113,11 +72,6 @@ public:
     pid_controller_.pidSet(kp, ki, kd);
   }
   void run(bool auto_calc_speed = false, int speed_calc_period_ms = 15) {
-    // PidController 内部管理其初始化状态，这里不再需要 is_pid_initialized_
-    // if (!is_pid_initialized_) {
-    //   throw std::runtime_error("PID not initialized!");
-    // }
-
     if (auto_calc_speed) {
       speed_timer_.expires_after(std::chrono::milliseconds(speed_calc_period_ms));
       speed_timer_.async_wait(std::bind(&Motor::speedUpdateHandler, this, std::placeholders::_1, speed_calc_period_ms));
@@ -130,21 +84,12 @@ public:
   }
 
   ~Motor() {
-    if (instance_index_ != -1) {
-      // Unregister ISRs
-      wiringPiISR(encoder_pinA_, INT_EDGE_SETUP, nullptr);
-      wiringPiISR(encoder_pinB_, INT_EDGE_SETUP, nullptr);
-
-      // Release the instance from the pool
-      motor_instances_[instance_index_] = nullptr;
-      instance_index_ = -1;
-    }
     // Turn off motor
     pwmWrite(pwm_pin_, 0);
     digitalWrite(motor_in1_, LOW);
     digitalWrite(motor_in2_, LOW);
   }
-  int encoderGetSteps() const { return encoder_steps_.load(); }
+  int encoderGetSteps() const { return rotary_encoder_.getSteps(); }
 
   int pidCalculate(double target, double current) {
     return pid_controller_.pidCalculate(target, current);
@@ -155,13 +100,12 @@ public:
     if (is_first_update_) {
       is_first_update_ = false;
       last_update_time_ms_ = get_current_ms();
-      //   return 0.0f;
     }
-    auto this_steps = encoder_steps_.load();
-    encoder_steps_.store(0);
+    auto this_steps = rotary_encoder_.getSteps(); // Get steps from RotaryEncoder
+    // LOG_INFO("Encoder steps: " << this_steps); // Add log for debugging
+    rotary_encoder_.resetSteps(); // Reset steps in RotaryEncoder
     auto this_time_ms = get_current_ms();
     auto time_diff_ms = this_time_ms - last_update_time_ms_;
-    // std::cout << "time_diff_ms: " << time_diff_ms << ", this_steps: " << this_steps << std::endl;
     last_update_time_ms_ = this_time_ms;
     float encode_number_of_turns;
     encode_number_of_turns = this_steps / (float)(SINGLE_TURN_PULSE * REDUCTION_RATIO);
@@ -169,10 +113,7 @@ public:
     auto encode_distance = encode_number_of_turns * WHEEL_CIRCUMFERENCE;
 
     auto speed = std::isnan(encode_distance / time_diff_ms * 1000.0f) ? 0.0f : (encode_distance / time_diff_ms * 1000.0f);
-    // std::cout << "encode_number_of_turns: " << encode_number_of_turns << ", encode_distance: " << encode_distance << "this speed: " <<
-    // speed<<", this steps: "<<this_steps
-    // << std::endl;
-    if (encoder_need_flip_) {
+    if (rotary_encoder_.getEncoderIsFlip()) { // Use RotaryEncoder's flip state
       speed = -speed;
     }
     // Sliding window average filter
@@ -180,29 +121,25 @@ public:
     speed_buffer_index_ = (speed_buffer_index_ + 1) % speed_buffer_size_;
 
     // Weighted average filter
-    // Weights: current (0.5), previous (0.3), before previous (0.2)
-    // Ensure speed_buffer_ has at least 3 elements for this weighted average
     float filtered_speed = 0.0f;
     if (speed_buffer_size_ < 3) {
-        // Fallback to simple average if buffer is too small
         float sum = std::accumulate(speed_buffer_.begin(), speed_buffer_.end(), 0.0f);
         filtered_speed = sum / speed_buffer_size_;
     } else {
-        // speed_buffer_index_ points to the current element just written
-        float latest_speed = speed_buffer_[speed_buffer_index_];
-        float prev_speed = speed_buffer_[(speed_buffer_index_ - 1 + speed_buffer_size_) % speed_buffer_size_];
-        float prev_prev_speed = speed_buffer_[(speed_buffer_index_ - 2 + speed_buffer_size_) % speed_buffer_size_];
+        float latest_speed = speed_buffer_[(speed_buffer_index_ - 1 + speed_buffer_size_) % speed_buffer_size_];
+        float prev_speed = speed_buffer_[(speed_buffer_index_ - 2 + speed_buffer_size_) % speed_buffer_size_];
+        float prev_prev_speed = speed_buffer_[(speed_buffer_index_ - 3 + speed_buffer_size_) % speed_buffer_size_]; // Corrected index
         filtered_speed = latest_speed * 0.5f + prev_speed * 0.3f + prev_prev_speed * 0.2f;
     }
 
     encoder_speed_.store(filtered_speed);
-    // return encoder_speed_;
+    // std::cout << "Encoder speed: " << filtered_speed << std::endl;
   }
   float getEncoderSpeed() const { return encoder_speed_.load(); }
 
   void controlSetForwoardIsFlip(bool need_flip) { forward_need_flip_ = need_flip; }
 
-  void encoderSetEncoderIsFlip(bool need_flip) { encoder_need_flip_ = need_flip; }
+  void encoderSetEncoderIsFlip(bool need_flip) { rotary_encoder_.setEncoderIsFlip(need_flip); } // Delegate to RotaryEncoder
 
 
   void stopSpeedCalculation() { speed_timer_.cancel(); }
@@ -242,67 +179,10 @@ private:
     }
   }
 
-  void encoderUpdateEdge() {
-    int aVal = digitalRead(encoder_pinA_) == 0 ? 1 : 0;
-    int bVal = digitalRead(encoder_pinB_) == 0 ? 1 : 0;
-    encoder_current_edge_ = (aVal << 1) | bVal;
-  }
-  void encoderChangeState(int edgeVal) {
-    State state = encoder_current_state_.load();
-    int newStateInt = transitions_[state][edgeVal];
-    if (newStateInt == StepPlus) {
-      // 顺时针步进
-      // std::cout << "Step Plus Detected" << std::endl;
-      encoder_steps_++;
-      //   std::cout << "Step Plus Detected" << std::endl;
-    } else if (newStateInt == StepMinus) {
-      // 逆时针步进
-      // std::cout << "Step Minus Detected" << std::endl;
-      encoder_steps_--;
-      //   std::cout << "Step Minus Detected" << std::endl;
-    } else {
-      // 普通状态转换
-      encoder_current_state_ = static_cast<State>(newStateInt);
-      return;
-    }
-    // 重置状态
-    encoder_current_state_ = Idle;
-  }
-  void encoderAChanged() {
-    // Original state machine logic
-    encoderUpdateEdge();
-    encoderChangeState(encoder_current_edge_);
-  }
-
-  void encoderBChanged() {
-    // Original state machine logic
-    encoderUpdateEdge();
-    encoderChangeState(encoder_current_edge_);
-  }
-
-
-  // 状态转换表
-  static constexpr int transitions_[7][4] = {
-      // 00, 01, 10, 11
-      {StateIdle, StateCcw1, StateCw1, StateIdle},  // Idle:   idle, ccw1, cw1, idle
-      {StateIdle, StateCcw1, StateCcw3, StateCcw2}, // Ccw1:   idle, ccw1, ccw3, ccw2
-      {StateIdle, StateCcw1, StateCcw3, StateCcw2}, // Ccw2:   idle, ccw1, ccw3, ccw2
-      {StepMinus, StateIdle, StateCcw3, StateCcw2}, // Ccw3:   -1, idle, ccw3, ccw2
-      {StateIdle, StateCw3, StateCw1, StateCw2},    // Cw1:    idle, cw3, cw1, cw2
-      {StateIdle, StateCw3, StateCw1, StateCw2},    // Cw2:    idle, cw3, cw1, cw2
-      {StepPlus, StateCw3, StateIdle, StateCw2}     // Cw3:    +1, cw3, idle, cw2
-  };
-
   bool forward_need_flip_ = false;
 
-
-  // 编码器核心状态变量
-  std::atomic<int16_t> encoder_steps_{0};
-  std::atomic<State> encoder_current_state_{Idle};
-  std::atomic<int> encoder_current_edge_{0};
   std::atomic<float> encoder_speed_{0.0f};
   long long last_update_time_ms_ = 0; // ms
-  bool encoder_need_flip_ = false;
 
   // For speed smoothing
   const size_t speed_buffer_size_ = 3; // Window size for weighted average
@@ -310,66 +190,13 @@ private:
   size_t speed_buffer_index_ = 0;
 
   int pwm_pin_ = -1;
-  int encoder_pinA_ = -1;
-  int encoder_pinB_ = -1;
   int motor_in1_ = -1;
   int motor_in2_ = -1;
-  int instance_index_ = -1;
 
   PidController pid_controller_; // PidController 实例
+  RotaryEncoder rotary_encoder_; // RotaryEncoder 实例
 
   boost::asio::steady_timer speed_timer_;
-
-  // --- Static members for ISR dispatching ---
-  static const int MAX_MOTORS = 4;
-  inline static Motor *motor_instances_[MAX_MOTORS] = {nullptr};
-
-  // ISR handler declarations
-  static void ISR_0A();
-  static void ISR_0B();
-  static void ISR_1A();
-  static void ISR_1B();
-  static void ISR_2A();
-  static void ISR_2B();
-  static void ISR_3A();
-  static void ISR_3B();
-
-  inline static void (*isr_A_funcs_[MAX_MOTORS])() = {ISR_0A, ISR_1A, ISR_2A, ISR_3A};
-  inline static void (*isr_B_funcs_[MAX_MOTORS])() = {ISR_0B, ISR_1B, ISR_2B, ISR_3B};
 };
-
-// --- ISR handler definitions ---
-inline void Motor::ISR_0A() {
-  if (motor_instances_[0])
-    motor_instances_[0]->encoderAChanged();
-}
-inline void Motor::ISR_0B() {
-  if (motor_instances_[0])
-    motor_instances_[0]->encoderBChanged();
-}
-inline void Motor::ISR_1A() {
-  if (motor_instances_[1])
-    motor_instances_[1]->encoderAChanged();
-}
-inline void Motor::ISR_1B() {
-  if (motor_instances_[1])
-    motor_instances_[1]->encoderBChanged();
-}
-inline void Motor::ISR_2A() {
-  if (motor_instances_[2])
-    motor_instances_[2]->encoderAChanged();
-}
-inline void Motor::ISR_2B() {
-  if (motor_instances_[2])
-    motor_instances_[2]->encoderBChanged();
-}
-inline void Motor::ISR_3A() {
-  if (motor_instances_[3])
-    motor_instances_[3]->encoderAChanged();
-}
-inline void Motor::ISR_3B() {
-  if (motor_instances_[3])
-    motor_instances_[3]->encoderBChanged();
-}
 
 } // namespace mini_infantry

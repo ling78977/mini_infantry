@@ -47,7 +47,7 @@ include_directories(
 #     file(WRITE "${PROJECT_SOURCES}" "int main() { return 0; }\n")
 # endif()
 
-add_executable(${PROJECT_NAME} ${CMAKE_CURRENT_SOURCE_DIR}/src/control/rotary_encoder.cpp)
+add_executable(${PROJECT_NAME} ${CMAKE_CURRENT_SOURCE_DIR}/src/control/test1.cpp)
 add_executable(debug_pid ${CMAKE_CURRENT_SOURCE_DIR}/src/control/debug_pid.cpp)
 
 target_link_libraries(debug_pid PRIVATE

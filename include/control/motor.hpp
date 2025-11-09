@@ -255,8 +255,21 @@ public:
     speed_buffer_[speed_buffer_index_] = speed;
     speed_buffer_index_ = (speed_buffer_index_ + 1) % speed_buffer_size_;
 
-    float sum = std::accumulate(speed_buffer_.begin(), speed_buffer_.end(), 0.0f);
-    float filtered_speed = sum / speed_buffer_size_;
+    // Weighted average filter
+    // Weights: current (0.5), previous (0.3), before previous (0.2)
+    // Ensure speed_buffer_ has at least 3 elements for this weighted average
+    float filtered_speed = 0.0f;
+    if (speed_buffer_size_ < 3) {
+        // Fallback to simple average if buffer is too small
+        float sum = std::accumulate(speed_buffer_.begin(), speed_buffer_.end(), 0.0f);
+        filtered_speed = sum / speed_buffer_size_;
+    } else {
+        // speed_buffer_index_ points to the current element just written
+        float latest_speed = speed_buffer_[speed_buffer_index_];
+        float prev_speed = speed_buffer_[(speed_buffer_index_ - 1 + speed_buffer_size_) % speed_buffer_size_];
+        float prev_prev_speed = speed_buffer_[(speed_buffer_index_ - 2 + speed_buffer_size_) % speed_buffer_size_];
+        filtered_speed = latest_speed * 0.5f + prev_speed * 0.3f + prev_prev_speed * 0.2f;
+    }
 
     encoder_speed_.store(filtered_speed);
     // return encoder_speed_;
@@ -373,7 +386,7 @@ private:
   bool encoder_need_flip_ = false;
 
   // For speed smoothing
-  const size_t speed_buffer_size_ = 3; // Average over 3 samples
+  const size_t speed_buffer_size_ = 3; // Window size for weighted average
   std::vector<float> speed_buffer_;
   size_t speed_buffer_index_ = 0;
 

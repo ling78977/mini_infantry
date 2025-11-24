@@ -22,6 +22,15 @@ include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/include/control
     ${Boost_INCLUDE_DIRS}
 )
+
+add_library(util_logger STATIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/util/logger.cpp
+)
+
+target_include_directories(util_logger PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/util
+)
+
 # 可选设置
 # option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
 # option(ENABLE_WARNINGS "Enable common warnings" ON)
@@ -47,8 +56,10 @@ include_directories(
 #     file(WRITE "${PROJECT_SOURCES}" "int main() { return 0; }\n")
 # endif()
 
-add_executable(${PROJECT_NAME} ${CMAKE_CURRENT_SOURCE_DIR}/src/control/test1.cpp)
-add_executable(debug_pid ${CMAKE_CURRENT_SOURCE_DIR}/src/control/debug_pid.cpp)
+add_executable(${PROJECT_NAME} ${CMAKE_CURRENT_SOURCE_DIR}/src/test/test1.cpp)
+add_executable(debug_pid ${CMAKE_CURRENT_SOURCE_DIR}/src/test/debug_pid.cpp)
+add_executable(test_motion_solver ${CMAKE_CURRENT_SOURCE_DIR}/src/test/test_motion_solver.cpp)
+add_executable(test_logger ${CMAKE_CURRENT_SOURCE_DIR}/src/test/test_logger.cpp)
 
 target_link_libraries(debug_pid PRIVATE
     WiringPi::WiringPi
@@ -56,11 +67,24 @@ target_link_libraries(debug_pid PRIVATE
     PahoMqttCpp::paho-mqttpp3-shared
     nlohmann_json::nlohmann_json
     Boost::system
+    util_logger
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
     WiringPi::WiringPi
     yaml-cpp
+    util_logger
+)
+
+target_link_libraries(test_motion_solver PRIVATE
+    WiringPi::WiringPi
+    yaml-cpp
+    Boost::system
+    util_logger
+)
+
+target_link_libraries(test_logger PRIVATE
+    util_logger
 )
 # # include 目录（如果存在）
 # if(EXISTS "${CMAKE_SOURCE_DIR}/include")

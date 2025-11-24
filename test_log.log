@@ -1,0 +1,5 @@
+[2025-11-24 20:49:01][INFO] This is an info message.
+[2025-11-24 20:49:01][WARN] This is a warning message.
+[2025-11-24 20:49:01][ERROR] This is an error message.
+[2025-11-24 20:49:01][FATAL] This is a fatal message. Application might crash!
+[2025-11-24 20:49:01][DEBUG] This is a debug message after changing log level.

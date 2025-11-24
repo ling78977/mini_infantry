@@ -7,53 +7,53 @@ MqttConfig:
 MotorPins:
   motor_front_left:
     pwm_pin: 1
-    encoder_pinA: 0
-    encoder_pinB: 2
-    motor_in1: 8
-    motor_in2: 9
-  motor_front_right:
-    pwm_pin: 23
-    encoder_pinA: 13
-    encoder_pinB: 14
-    motor_in1: 21
-    motor_in2: 22
+    motor_in1: 0
+    motor_in2: 2
+    encoder_pinA: 3
+    encoder_pinB: 4
   motor_back_left:
-    pwm_pin: 26
-    encoder_pinA: 10
-    encoder_pinB: 6
-    motor_in1: 31
-    motor_in2: 11
-  motor_back_right:
+    pwm_pin: 23
+    motor_in1: 5
+    motor_in2: 6
+    encoder_pinA: 7
+    encoder_pinB: 10
+  motor_front_right:
     pwm_pin: 24
-    encoder_pinA: 27
-    encoder_pinB: 29
-    motor_in1: 25
+    motor_in1: 11
+    motor_in2: 21
+    encoder_pinA: 22
+    encoder_pinB: 25
+  motor_back_right:
+    pwm_pin: 26
+    motor_in1: 27
     motor_in2: 28
+    encoder_pinA: 30
+    encoder_pinB: 29
 MotorConfig:
   max_motors: 4
   speed_buffer_size: 3
 Motors:
   motor_front_left:
-    kp: 64.700000000000003
-    ki: 48.299999999999997
-    kd: 64.200000000000003
-    forward_is_flip: true
-    encoder_is_flip: false
+    kp: 73.299999999999997
+    ki: 18.399999999999999
+    kd: 72
+    forward_is_flip: false
+    encoder_is_flip: true
   motor_front_right:
     kp: 70.299999999999997
-    ki: 36.399999999999999
+    ki: 51.600000000000001
     kd: 67.700000000000003
     forward_is_flip: true
     encoder_is_flip: false
   motor_back_left:
-    kp: 61.200000000000003
-    ki: 56.5
-    kd: 59.200000000000003
+    kp: 79.5
+    ki: 48
+    kd: 57.600000000000001
     forward_is_flip: true
-    encoder_is_flip: false
+    encoder_is_flip: true
   motor_back_right:
     kp: 59.799999999999997
-    ki: 31.100000000000001
+    ki: 42.399999999999999
     kd: 61.299999999999997
     forward_is_flip: false
-    encoder_is_flip: false
+    encoder_is_flip: true

@@ -3,14 +3,15 @@
 #include "pid_controller.hpp"
 #include "rotary_encoder.hpp"
 #include "util/periodic_timer.hpp"
+#include "util/logger_init.hpp" // Include logger_init.hpp
 
 #include <boost/asio.hpp>
 #include <chrono>
-#include <iostream>
 #include <random>
 #include <thread>
 #include <wiringPi.h>
 #include <yaml-cpp/yaml.h> // 引入yaml-cpp库
+#include <spdlog/spdlog.h> // Include spdlog
 
 using namespace mini_infantry;
 
@@ -29,8 +30,7 @@ std::unique_ptr<PeriodicTimer> main_control_timer;
 
 void signal_handler(const boost::system::error_code &error, int signal_number) {
   if (!error) {
-    std::cout << "Received signal " << signal_number << ", shutting down..."
-              << std::endl;
+    spdlog::warn("Received signal {}, shutting down...", signal_number);
     // 停止所有电机速度计算
     if (motor_fl)
       motor_fl->stopSpeedCalculation();
@@ -81,15 +81,12 @@ void main_control_loop() {
 
   MotionSolver::solve(current_vx, current_vy, current_v_yaw);
 
-  std::cout << "Target: vx=" << target_vx << ", vy=" << target_vy
-            << ", v_yaw=" << target_v_yaw << std::endl;
-  std::cout << "Current: vx=" << current_vx << ", vy=" << current_vy
-            << ", v_yaw=" << current_v_yaw << std::endl;
+  spdlog::info("Target: vx={}, vy={}, v_yaw={}", target_vx, target_vy, target_v_yaw);
+  spdlog::info("Current: vx={}, vy={}, v_yaw={}", current_vx, current_vy, current_v_yaw);
   // 打印当前电机速度
-  std::cout << "Current FL Speed: " << motor_fl->getEncoderSpeed()
-            << ", FR Speed: " << motor_fr->getEncoderSpeed()
-            << ", BL Speed: " << motor_bl->getEncoderSpeed()
-            << ", BR Speed: " << motor_br->getEncoderSpeed() << std::endl;
+  spdlog::info("Current FL Speed: {}, FR Speed: {}, BL Speed: {}, BR Speed: {}",
+               motor_fl->getEncoderSpeed(), motor_fr->getEncoderSpeed(),
+               motor_bl->getEncoderSpeed(), motor_br->getEncoderSpeed());
 
   // 更新角度，使小车继续沿圆周运动
   // 角度变化 = (线速度 / 半径) * 时间
@@ -100,10 +97,20 @@ void main_control_loop() {
   }
 }
 
-int main() {
+int main(int argc, char* argv[]) {
+  // 初始化spdlog
+  // 提取程序名作为日志器名称
+  std::string program_name = (argc > 0) ? std::string(argv[0]) : "unknown_program";
+  // 移除路径部分，只保留程序名
+  size_t last_slash_idx = program_name.find_last_of("/\\");
+  if (std::string::npos != last_slash_idx) {
+      program_name = program_name.substr(last_slash_idx + 1);
+  }
+  util::init_logger("application.log", program_name, spdlog::level::info, spdlog::level::info);
+
   // 初始化WiringPi库
   if (wiringPiSetup() == -1) {
-    std::cerr << "WiringPi initialization failed!" << std::endl;
+    spdlog::error("WiringPi initialization failed!");
     return 1;
   }
 
@@ -182,20 +189,19 @@ int main() {
 
     // 设置主控制循环定时器 (例如，每50ms执行一次)
     main_control_timer = std::make_unique<PeriodicTimer>(
-        io_context, std::bind(main_control_loop), std::chrono::milliseconds(50));
+        io_context, std::bind(main_control_loop), std::chrono::milliseconds(1000));
     main_control_timer->start();
 
-    std::cout << "Motion solver test started. Press Ctrl+C to exit."
-              << std::endl;
+    spdlog::info("Motion solver test started. Press Ctrl+C to exit.");
 
     // 运行io_context，这将阻塞直到所有任务完成或io_context停止
     io_context.run();
 
   } catch (const YAML::Exception &e) {
-    std::cerr << "YAML parsing error: " << e.what() << std::endl;
+    spdlog::error("YAML parsing error: {}", e.what());
     return 1;
   } catch (const std::exception &e) {
-    std::cerr << "Error: " << e.what() << std::endl;
+    spdlog::error("Error: {}", e.what());
     return 1;
   }
 
@@ -205,6 +211,6 @@ int main() {
   // 但目前看来，MotionSolver只持有Motor的裸指针，不负责其生命周期。
   // 因此，这里不需要显式调用MotionSolver::releaseInstance()。
 
-  std::cout << "Motion solver test finished." << std::endl;
+  spdlog::info("Motion solver test finished.");
   return 0;
 }

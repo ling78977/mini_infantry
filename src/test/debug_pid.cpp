@@ -4,7 +4,6 @@
 #include <fstream>
 #include <functional>
 #include <iomanip>
-#include <iostream>
 #include <mutex>
 #include <thread>
 #include <vector>
@@ -14,10 +13,12 @@
 #include "nlohmann/json.hpp"
 #include "yaml-cpp/yaml.h"
 #include <boost/asio.hpp>
+#include <spdlog/spdlog.h> // Include spdlog
 
 // Project Headers
 #include "motion_sovler.hpp"
-#include "motor.hpp" // 引入日志宏
+#include "motor.hpp"
+#include "util/logger_init.hpp" // Include logger_init.hpp
 
 using json = nlohmann::json;
 
@@ -45,15 +46,15 @@ class callback : public virtual mqtt::callback {
   YAML::Node config_node_; // Store the config node for saving parameters
 
   void connected(const std::string &cause) override {
-    LOG_INFO("\nConnection successful.");
-    LOG_INFO("\nSubscribing to topic '" << topic_control_ << "' for client " << client_id_ << " using QoS" << qos_ << "\n");
+    spdlog::info("Connection successful.");
+    spdlog::info("Subscribing to topic '{}' for client {} using QoS {}", topic_control_, client_id_, qos_);
     cli_.subscribe(topic_control_, qos_);
   }
 
   void connection_lost(const std::string &cause) override {
-    LOG_INFO("\nConnection lost");
+    spdlog::warn("Connection lost");
     if (!cause.empty())
-      LOG_INFO("\tcause: " << cause);
+      spdlog::warn("\tcause: {}", cause);
   }
 
   void message_arrived(mqtt::const_message_ptr msg) override {
@@ -78,7 +79,7 @@ class callback : public virtual mqtt::callback {
         motors_[motor_idx]->encoderSetEncoderIsFlip(encoder_is_flip);
 
         if (save_params) {
-          LOG_INFO("Saving parameters for motor " << motor_idx << "...");
+          spdlog::info("Saving parameters for motor {}...", motor_idx);
           // Use the stored config_node_
           std::string motor_name;
           switch (static_cast<MotorID>(motor_idx)) {
@@ -104,16 +105,16 @@ class callback : public virtual mqtt::callback {
             std::ofstream fout("/home/jaren/projects/mini_infantry/config/pid_cinfig.yaml");
             fout << config_node_; // Write the modified config_node_
             fout.close();
-            LOG_INFO("Parameters saved.");
+            spdlog::info("Parameters saved.");
           }
         }
       } else {
-        LOG_ERROR("Invalid motor index received: " << static_cast<int>(motor_idx));
+        spdlog::error("Invalid motor index received: {}", static_cast<int>(motor_idx));
       }
     } catch (const json::parse_error &e) {
-      LOG_ERROR("JSON parse error: " << e.what());
+      spdlog::error("JSON parse error: {}", e.what());
     } catch (const std::exception &e) {
-      LOG_ERROR("Error processing message: " << e.what());
+      spdlog::error("Error processing message: {}", e.what());
     }
   }
 
@@ -126,14 +127,24 @@ public:
         config_node_(config) {}
 };
 
-int main() {
+int main(int argc, char* argv[]) {
+  // Initialize spdlog
+  // 提取程序名作为日志器名称
+  std::string program_name = (argc > 0) ? std::string(argv[0]) : "unknown_program";
+  // 移除路径部分，只保留程序名
+  size_t last_slash_idx = program_name.find_last_of("/\\");
+  if (std::string::npos != last_slash_idx) {
+      program_name = program_name.substr(last_slash_idx + 1);
+  }
+  util::init_logger("application.log", program_name, spdlog::level::info, spdlog::level::info);
+
   boost::asio::io_context io_ctx;
 
   if (wiringPiSetup() == -1) {
-    LOG_ERROR("Failed to initialize wiringPi");
+    spdlog::error("Failed to initialize wiringPi");
     return 1;
   }
-  LOG_INFO("wiringPi initialized successfully");
+  spdlog::info("wiringPi initialized successfully");
 
   YAML::Node main_config = YAML::LoadFile("/home/jaren/projects/mini_infantry/config/pid_cinfig.yaml");
   int speed_buffer_size = main_config["MotorConfig"]["speed_buffer_size"].as<int>();
@@ -203,14 +214,14 @@ int main() {
   auto connOpts = mqtt::connect_options_builder().clean_session().will(mqtt::message("test", "LWT", QOS)).finalize();
 
   try {
-    LOG_INFO("Connecting to the MQTT server...");
+    spdlog::info("Connecting to the MQTT server...");
     client.connect(connOpts)->wait();
   } catch (const mqtt::exception &exc) {
-    LOG_ERROR("Error: " << exc.what());
+    spdlog::error("Error: {}", exc.what());
     return 1;
   }
 
-  LOG_INFO("MQTT client connected. Starting event loop.");
+  spdlog::info("MQTT client connected. Starting event loop.");
 
   boost::asio::steady_timer pid_timer(io_ctx);
   int pid_period_ms = 15; // PID calculation interval
@@ -220,7 +231,7 @@ int main() {
     if (ec) {
       if (ec == boost::asio::error::operation_aborted)
         return;
-      LOG_ERROR("PID timer error: " << ec.message());
+      spdlog::error("PID timer error: {}", ec.message());
       return;
     }
 
@@ -262,7 +273,7 @@ int main() {
   // Handle graceful shutdown
   boost::asio::signal_set signals(io_ctx, SIGINT, SIGTERM);
   signals.async_wait([&](const boost::system::error_code &, int) {
-    LOG_INFO("\nCaught signal, shutting down gracefully...");
+    spdlog::info("Caught signal, shutting down gracefully...");
     io_ctx.stop();
   });
 
@@ -270,11 +281,11 @@ int main() {
   io_ctx.run();
 
   // Cleanup
-  LOG_INFO("Disconnecting from the MQTT server...");
+  spdlog::info("Disconnecting from the MQTT server...");
   if (client.is_connected()) {
     client.disconnect()->wait();
   }
-  LOG_INFO("Clean up and exit.");
+  spdlog::info("Clean up and exit.");
 
   return 0;
 }

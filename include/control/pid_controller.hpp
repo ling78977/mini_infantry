@@ -2,21 +2,10 @@
 #define MINI_INFANTRY_PID_CONTROLLER_HPP
 
 #include <algorithm> // For std::clamp
-#include <iostream> // For LOG_INFO/LOG_ERROR (if needed, or pass a logger)
+#include <spdlog/spdlog.h> // For spdlog
+#include "util/logger_init.hpp" // For logger initialization
 
 namespace mini_infantry {
-
-// 简单的日志宏，方便后续替换为更复杂的日志系统
-// 注意：这里重新定义是为了pid_controller.hpp可以独立使用，
-// 实际项目中应使用统一的日志系统
-// 假设 motor.hpp 会先被包含，其中定义了 LOG_INFO 和 LOG_ERROR
-// 如果 pid_controller.hpp 需要独立使用，则需要在此处添加 std:: 前缀
-#ifndef LOG_INFO
-#define LOG_INFO(msg) std::cout << "[INFO] " << msg << std::endl
-#endif
-#ifndef LOG_ERROR
-#define LOG_ERROR(msg) std::cerr << "[ERROR] " << msg << std::endl
-#endif
 
 /**
  * @brief 存储PID控制器参数和状态的数据结构。
@@ -51,7 +40,7 @@ public:
     pid_data_.kd = 0.0;
     pid_data_.max_iout = 0.0; // 默认值，需要通过pidInit或pidSet设置
     reset();
-    LOG_INFO("PidController initialized.");
+    spdlog::info("PidController initialized.");
   }
 
   /**
@@ -67,7 +56,7 @@ public:
     pid_data_.kd = kd;
     pid_data_.max_iout = max_iout;
     reset();
-    LOG_INFO("PidController parameters initialized: Kp=" << kp << ", Ki=" << ki << ", Kd=" << kd << ", MaxIOut=" << max_iout);
+    spdlog::info("PidController parameters initialized: Kp={}, Ki={}, Kd={}, MaxIOut={}", kp, ki, kd, max_iout);
   }
 
   /**
@@ -117,7 +106,7 @@ public:
     pid_data_.d_out = 0.0;
     pid_data_.last_error = 0.0;
     pid_data_.current_error = 0.0;
-    LOG_INFO("PidController state reset.");
+    spdlog::info("PidController state reset.");
   }
 
   /**

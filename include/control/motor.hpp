@@ -6,24 +6,12 @@
 #include <boost/asio.hpp>
 #include <cmath>
 #include <functional>
-#include <iostream>
 #include <memory> // For std::unique_ptr
 #include <numeric>
 #include <vector>
 #include <wiringPi.h>
+#include <spdlog/spdlog.h>
 
-// 简单的日志宏，方便后续替换为更复杂的日志系统
-#define LOG_INFO(msg) std::cout << "[INFO] " << msg << std::endl
-#define LOG_ERROR(msg) std::cerr << "[ERROR] " << msg << std::endl
-#define PWM_PIN_WIR_1 1
-#define PWM_PIN_WIR_23 23
-#define PWM_PIN_WIR_24 24
-#define PWM_PIN_WIR_26 26
-
-#define PWM_PIN_BCM_12 12
-#define PWM_PIN_BCM_13 13
-#define PWM_PIN_BCM_18 18
-#define PWM_PIN_BCM_19 19
 
 #define PI 3.14159265358979323846f
 #define DEG2RAD(x) ((x) * PI / 180.0f)
@@ -60,7 +48,7 @@ public:
     pwmWrite(pwm_pin_, 0);
     speed_buffer_.resize(speed_buffer_size_, 0.0f);
 
-    LOG_INFO("Motor initialized with pwm_pin: " << pwm_pin_ << ", encoder_pinA: " << encoder_pinA << ", encoder_pinB: " << encoder_pinB);
+    spdlog::info("Motor initialized with pwm_pin: {}, encoder_pinA: {}, encoder_pinB: {}", pwm_pin_, encoder_pinA, encoder_pinB);
   }
   void pidInit(double kp = 100.0, double ki = 100.0, double kd = 100.0, double max_iout = 99.0) {
     pid_controller_.pidInit(kp, ki, kd, max_iout);

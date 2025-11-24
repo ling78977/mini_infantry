@@ -5,6 +5,7 @@
 #include <vector>
 #include <boost/asio.hpp>
 #include "yaml-cpp/yaml.h"
+#include <spdlog/spdlog.h>
 
 // 移除旧的 sigint_handler，使用 boost::asio::signal_set 替代
 
@@ -15,10 +16,10 @@ int main() {
     boost::asio::io_context io_ctx;
 
     if (wiringPiSetup() == -1) {
-      LOG_ERROR("Failed to initialize wiringPi");
+      spdlog::error("Failed to initialize wiringPi");
       return 1;
     }
-    LOG_INFO("wiringPi initialized successfully");
+    spdlog::info("wiringPi initialized successfully");
 
     YAML::Node config = YAML::LoadFile("/home/jaren/projects/mini_infantry/config/pid_cinfig.yaml");
 
@@ -60,25 +61,25 @@ int main() {
       // if (val1 >= 100 || val1 <= 0)
       //   step1 = -step1;
       // motor1.controlSetPwm(val1);
-      LOG_INFO("motor1 steps: " << motor1.encoderGetSteps());
+      spdlog::info("motor1 steps: {}", motor1.encoderGetSteps());
 
       // val2 += step2;
       // if (val2 >= 100 || val2 <= 0)
       //   step2 = -step2;
       // motor2.controlSetPwm(val2);
-      LOG_INFO("motor2 steps: " << motor2.encoderGetSteps());
+      spdlog::info("motor2 steps: {}", motor2.encoderGetSteps());
 
       // val3 += step3;
       // if (val3 >= 100 || val3 <= 0)
       //   step3 = -step3;
       // motor3.controlSetPwm(val3);
-      LOG_INFO("motor3 steps: " << motor3.encoderGetSteps());
+      spdlog::info("motor3 steps: {}", motor3.encoderGetSteps());
 
       // val4 += step4;
       // if (val4 >= 100 || val4 <= 0)
       //   step4 = -step4;
       // motor4.controlSetPwm(val4);
-      LOG_INFO("motor4 steps: " << motor4.encoderGetSteps());
+      spdlog::info("motor4 steps: {}", motor4.encoderGetSteps());
 
       std::this_thread::sleep_for(std::chrono::milliseconds(5
     ));
@@ -87,7 +88,7 @@ int main() {
     // Handle graceful shutdown
     boost::asio::signal_set signals(io_ctx, SIGINT, SIGTERM);
     signals.async_wait([&](const boost::system::error_code &, int) {
-      LOG_INFO("\nCaught signal, shutting down gracefully...");
+      spdlog::info("\nCaught signal, shutting down gracefully...");
       io_ctx.stop();
     });
 
@@ -95,7 +96,7 @@ int main() {
     io_ctx.run();
 
   } catch (const std::exception &e) {
-    LOG_ERROR("Exception: " << e.what());
+    spdlog::error("Exception: {}", e.what());
     return 1;
   }
 

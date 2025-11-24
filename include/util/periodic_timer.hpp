@@ -3,13 +3,9 @@
 #include <boost/asio.hpp>
 #include <functional>
 #include <chrono>
-#include <iostream>
+#include <spdlog/spdlog.h>
 
 namespace mini_infantry {
-
-// 简单的日志宏，方便后续替换为更复杂的日志系统
-#define LOG_INFO(msg) std::cout << "[INFO] " << msg << std::endl
-#define LOG_ERROR(msg) std::cerr << "[ERROR] " << msg << std::endl
 
 class PeriodicTimer {
 public:
@@ -21,13 +17,13 @@ public:
     void start() {
         timer_.expires_after(period_);
         timer_.async_wait(std::bind(&PeriodicTimer::handleTimeout, this, std::placeholders::_1));
-        LOG_INFO("PeriodicTimer started with period: " << period_.count() << "ms");
+        spdlog::info("PeriodicTimer started with period: {}ms", period_.count());
     }
 
     // 停止定时器
     void stop() {
         timer_.cancel();
-        LOG_INFO("PeriodicTimer stopped.");
+        spdlog::info("PeriodicTimer stopped.");
     }
 
 private:
@@ -38,7 +34,7 @@ private:
             return;
         }
         if (ec) {
-            LOG_ERROR("PeriodicTimer error: " << ec.message());
+            spdlog::error("PeriodicTimer error: {}", ec.message());
             return;
         }
 

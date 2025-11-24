@@ -3,20 +3,19 @@
 #include <chrono>
 #include <fstream>
 #include <functional>
-#include <iomanip>
 #include <mutex>
-#include <thread>
 #include <vector>
 
 // Third-party Libraries
 #include "mqtt/async_client.h"
 #include "nlohmann/json.hpp"
-#include "yaml-cpp/yaml.h"
 #include <boost/asio.hpp>
+#include <fstream>
 #include <spdlog/spdlog.h> // Include spdlog
-
+#include <yaml-cpp/node/node.h>
+#include <yaml-cpp/node/parse.h>
+#include <yaml-cpp/yaml.h>
 // Project Headers
-#include "motion_sovler.hpp"
 #include "motor.hpp"
 #include "util/logger_init.hpp" // Include logger_init.hpp
 
@@ -119,22 +118,20 @@ class callback : public virtual mqtt::callback {
   }
 
 public:
-  callback(mqtt::async_client &cli, std::vector<mini_infantry::Motor *> &motors, const YAML::Node& config)
-      : cli_(cli), motors_(motors),
-        topic_control_(config["MqttConfig"]["topic_control"].as<std::string>()),
-        client_id_(config["MqttConfig"]["client_id"].as<std::string>()),
-        qos_(config["MqttConfig"]["qos"].as<int>()),
-        config_node_(config) {}
+  callback(mqtt::async_client &cli, std::vector<mini_infantry::Motor *> &motors, const YAML::Node &config)
+      : cli_(cli), motors_(motors), topic_control_(config["MqttConfig"]["topic_control"].as<std::string>()),
+        client_id_(config["MqttConfig"]["client_id"].as<std::string>()), qos_(config["MqttConfig"]["qos"].as<int>()), config_node_(config) {
+  }
 };
 
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[]) {
   // Initialize spdlog
   // 提取程序名作为日志器名称
   std::string program_name = (argc > 0) ? std::string(argv[0]) : "unknown_program";
   // 移除路径部分，只保留程序名
   size_t last_slash_idx = program_name.find_last_of("/\\");
   if (std::string::npos != last_slash_idx) {
-      program_name = program_name.substr(last_slash_idx + 1);
+    program_name = program_name.substr(last_slash_idx + 1);
   }
   util::init_logger("application.log", program_name, spdlog::level::info, spdlog::level::info);
 
@@ -150,25 +147,25 @@ int main(int argc, char* argv[]) {
   int speed_buffer_size = main_config["MotorConfig"]["speed_buffer_size"].as<int>();
 
   mini_infantry::Motor motor_front_left(io_ctx, main_config["MotorPins"]["motor_front_left"]["pwm_pin"].as<int>(),
-                                         main_config["MotorPins"]["motor_front_left"]["encoder_pinA"].as<int>(),
-                                         main_config["MotorPins"]["motor_front_left"]["encoder_pinB"].as<int>(),
-                                         main_config["MotorPins"]["motor_front_left"]["motor_in1"].as<int>(),
-                                         main_config["MotorPins"]["motor_front_left"]["motor_in2"].as<int>());
+                                        main_config["MotorPins"]["motor_front_left"]["encoder_pinA"].as<int>(),
+                                        main_config["MotorPins"]["motor_front_left"]["encoder_pinB"].as<int>(),
+                                        main_config["MotorPins"]["motor_front_left"]["motor_in1"].as<int>(),
+                                        main_config["MotorPins"]["motor_front_left"]["motor_in2"].as<int>());
   mini_infantry::Motor motor_front_right(io_ctx, main_config["MotorPins"]["motor_front_right"]["pwm_pin"].as<int>(),
-                                           main_config["MotorPins"]["motor_front_right"]["encoder_pinA"].as<int>(),
-                                           main_config["MotorPins"]["motor_front_right"]["encoder_pinB"].as<int>(),
-                                           main_config["MotorPins"]["motor_front_right"]["motor_in1"].as<int>(),
-                                           main_config["MotorPins"]["motor_front_right"]["motor_in2"].as<int>());
+                                         main_config["MotorPins"]["motor_front_right"]["encoder_pinA"].as<int>(),
+                                         main_config["MotorPins"]["motor_front_right"]["encoder_pinB"].as<int>(),
+                                         main_config["MotorPins"]["motor_front_right"]["motor_in1"].as<int>(),
+                                         main_config["MotorPins"]["motor_front_right"]["motor_in2"].as<int>());
   mini_infantry::Motor motor_back_left(io_ctx, main_config["MotorPins"]["motor_back_left"]["pwm_pin"].as<int>(),
-                                         main_config["MotorPins"]["motor_back_left"]["encoder_pinA"].as<int>(),
-                                         main_config["MotorPins"]["motor_back_left"]["encoder_pinB"].as<int>(),
-                                         main_config["MotorPins"]["motor_back_left"]["motor_in1"].as<int>(),
-                                         main_config["MotorPins"]["motor_back_left"]["motor_in2"].as<int>());
+                                       main_config["MotorPins"]["motor_back_left"]["encoder_pinA"].as<int>(),
+                                       main_config["MotorPins"]["motor_back_left"]["encoder_pinB"].as<int>(),
+                                       main_config["MotorPins"]["motor_back_left"]["motor_in1"].as<int>(),
+                                       main_config["MotorPins"]["motor_back_left"]["motor_in2"].as<int>());
   mini_infantry::Motor motor_back_right(io_ctx, main_config["MotorPins"]["motor_back_right"]["pwm_pin"].as<int>(),
-                                           main_config["MotorPins"]["motor_back_right"]["encoder_pinA"].as<int>(),
-                                           main_config["MotorPins"]["motor_back_right"]["encoder_pinB"].as<int>(),
-                                           main_config["MotorPins"]["motor_back_right"]["motor_in1"].as<int>(),
-                                           main_config["MotorPins"]["motor_back_right"]["motor_in2"].as<int>());
+                                        main_config["MotorPins"]["motor_back_right"]["encoder_pinA"].as<int>(),
+                                        main_config["MotorPins"]["motor_back_right"]["encoder_pinB"].as<int>(),
+                                        main_config["MotorPins"]["motor_back_right"]["motor_in1"].as<int>(),
+                                        main_config["MotorPins"]["motor_back_right"]["motor_in2"].as<int>());
 
   std::vector<mini_infantry::Motor *> motors = {&motor_front_left, &motor_front_right, &motor_back_left, &motor_back_right};
 
@@ -183,16 +180,17 @@ int main(int argc, char* argv[]) {
   motor_back_right.encoderSetEncoderIsFlip(main_config["Motors"]["motor_back_right"]["encoder_is_flip"].as<bool>());
 
   motors[FRONT_LEFT]->pidInit(main_config["Motors"]["motor_front_left"]["kp"].as<double>(),
-                               main_config["Motors"]["motor_front_left"]["ki"].as<double>(),
-                               main_config["Motors"]["motor_front_left"]["kd"].as<double>());
+                              main_config["Motors"]["motor_front_left"]["ki"].as<double>(),
+                              main_config["Motors"]["motor_front_left"]["kd"].as<double>());
   motors[FRONT_RIGHT]->pidInit(main_config["Motors"]["motor_front_right"]["kp"].as<double>(),
                                main_config["Motors"]["motor_front_right"]["ki"].as<double>(),
                                main_config["Motors"]["motor_front_right"]["kd"].as<double>());
-  motors[BACK_LEFT]->pidInit(main_config["Motors"]["motor_back_left"]["kp"].as<double>(), main_config["Motors"]["motor_back_left"]["ki"].as<double>(),
+  motors[BACK_LEFT]->pidInit(main_config["Motors"]["motor_back_left"]["kp"].as<double>(),
+                             main_config["Motors"]["motor_back_left"]["ki"].as<double>(),
                              main_config["Motors"]["motor_back_left"]["kd"].as<double>());
   motors[BACK_RIGHT]->pidInit(main_config["Motors"]["motor_back_right"]["kp"].as<double>(),
-                               main_config["Motors"]["motor_back_right"]["ki"].as<double>(),
-                               main_config["Motors"]["motor_back_right"]["kd"].as<double>());
+                              main_config["Motors"]["motor_back_right"]["ki"].as<double>(),
+                              main_config["Motors"]["motor_back_right"]["kd"].as<double>());
 
   for (auto &motor : motors) {
     // if (motor != &motor_back_right) {
@@ -251,7 +249,7 @@ int main(int argc, char* argv[]) {
 
         if (i == current_target_motor) {
 
-          // LOG_INFO("Motor " << i << " speed: " << speed_to_set << " pwm: " << pwm_value);
+          // spdlog::info("Motor {} speed: {} pwm: {}", i, speed_to_set, pwm_value);
 
           json status_msg;
           status_msg["motor_id"] = i;

@@ -3,7 +3,6 @@
 
 #include <algorithm> // For std::clamp
 #include <spdlog/spdlog.h> // For spdlog
-#include "util/logger_init.hpp" // For logger initialization
 
 namespace mini_infantry {
 

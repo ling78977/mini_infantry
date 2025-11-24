@@ -48,10 +48,10 @@ public:
     MotionSolver *solver = getInstance();
     if (solver->motor_front_left_ != nullptr) {
       // 可选：防止重复设置电机指针
-      throw std::runtime_error("Motors already set. Cannot reinitialize.");
+      spdlog::critical("Motors already set. Cannot reinitialize.");
     }
     if (!motor_front_left || !motor_front_right || !motor_back_left || !motor_back_right) {
-      throw std::invalid_argument("Motor pointers cannot be null.");
+      spdlog::critical("Motor pointers cannot be null.");
     }
     solver->motor_front_left_ = motor_front_left;
     solver->motor_front_right_ = motor_front_right;
@@ -63,7 +63,7 @@ public:
   static void solve(float vx, float vy, float v_yaw) {
     MotionSolver *solver = getInstance();
     if (!solver->motor_front_left_ || !solver->motor_front_right_ || !solver->motor_back_left_ || !solver->motor_back_right_) {
-      throw std::runtime_error("Motors not initialized. Call setMotors() first.");
+      spdlog::critical("Motors not initialized. Call setMotors() first.");
     }
     float lf_speed, rf_speed, lb_speed, rb_speed;
 

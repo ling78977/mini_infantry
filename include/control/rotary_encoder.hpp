@@ -2,12 +2,8 @@
 
 #include <atomic>
 #include <cmath>
+#include <spdlog/spdlog.h>
 #include <wiringPi.h>
-#include <iostream> // For LOG_INFO/ERROR
-
-// 简单的日志宏，方便后续替换为更复杂的日志系统
-#define LOG_INFO(msg) std::cout << "[INFO] " << msg << std::endl
-#define LOG_ERROR(msg) std::cerr << "[ERROR] " << msg << std::endl
 
 namespace mini_infantry {
 
@@ -28,8 +24,7 @@ enum TransitionResult {
 
 class RotaryEncoder {
 public:
-  RotaryEncoder(int encoder_pinA, int encoder_pinB)
-      : encoder_pinA_(encoder_pinA), encoder_pinB_(encoder_pinB) {
+  RotaryEncoder(int encoder_pinA, int encoder_pinB) : encoder_pinA_(encoder_pinA), encoder_pinB_(encoder_pinB) {
     // Assign an instance index from the pool
     instance_index_ = -1;
     for (int i = 0; i < MAX_ENCODERS; ++i) {
@@ -40,8 +35,8 @@ public:
       }
     }
     if (instance_index_ == -1) {
-      LOG_ERROR("Maximum number of RotaryEncoder instances reached.");
-      throw std::runtime_error("Maximum number of RotaryEncoder instances reached.");
+      spdlog::critical("Maximum number of RotaryEncoder instances reached.");
+      // throw std::runtime_error("Maximum number of RotaryEncoder instances reached.");
     }
 
     pinMode(encoder_pinA_, INPUT);
@@ -51,12 +46,13 @@ public:
     updateEdge(); // Initialize encoder edge state
 
     if (wiringPiISR(encoder_pinA_, INT_EDGE_BOTH, isr_A_funcs_[instance_index_]) != 0) {
-      throw std::runtime_error("Failed to setup ISR for pin A on RotaryEncoder");
+      spdlog::critical("Failed to setup ISR for pin A on RotaryEncoder");
     }
     if (wiringPiISR(encoder_pinB_, INT_EDGE_BOTH, isr_B_funcs_[instance_index_]) != 0) {
-      throw std::runtime_error("Failed to setup ISR for pin B on RotaryEncoder");
+      spdlog::critical("Failed to setup ISR for pin B on RotaryEncoder");
     }
-    LOG_INFO("RotaryEncoder initialized and ISRs registered on pins " << encoder_pinA_ << " and " << encoder_pinB_ << " for instance " << instance_index_ << ". Configured pins: A=" << encoder_pinA << ", B=" << encoder_pinB);
+    spdlog::info("RotaryEncoder initialized and ISRs registered on pins {} and {} for instance {}. Configured pins: A={}, B={}",
+                 encoder_pinA_, encoder_pinB_, instance_index_, encoder_pinA, encoder_pinB);
   }
 
   ~RotaryEncoder() {
@@ -80,13 +76,13 @@ public:
 
   // ISR handlers to be called by external dispatchers
   void pinAChanged() {
-    // LOG_INFO("pinAChanged triggered for encoder " << instance_index_); // Add log for debugging
+    // spdlog::info("pinAChanged triggered for encoder {}", instance_index_); // Add log for debugging
     updateEdge();
     changeState(encoder_current_edge_);
   }
 
   void pinBChanged() {
-    // LOG_INFO("pinBChanged triggered for encoder " << instance_index_); // Add log for debugging
+    // spdlog::info("pinBChanged triggered for encoder {}", instance_index_); // Add log for debugging
     updateEdge();
     changeState(encoder_current_edge_);
   }
@@ -111,7 +107,7 @@ private:
     }
     encoder_current_state_ = Idle;
   }
-  
+
   int encoder_pinA_;
   int encoder_pinB_;
   int instance_index_ = -1; // Instance index for ISR dispatching

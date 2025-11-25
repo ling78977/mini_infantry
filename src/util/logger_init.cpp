@@ -27,7 +27,7 @@ namespace util {
                 global_logger->set_level(global_logger_level); // Default logging level
                 global_logger->flush_on(spdlog::level::info); // Flush on info and higher
                 spdlog::set_default_logger(global_logger);
-                spdlog::set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%n] [%l] %v"); // Custom pattern with logger name
+                spdlog::set_pattern("%^[%Y-%m-%d %H:%M:%S.%e] [%n] [%l] %v%$"); // Custom pattern with logger name and color level
 
                 spdlog::info("Logger initialized successfully. Logging to {}", log_file_name);
             } catch (const spdlog::spdlog_ex& ex) {

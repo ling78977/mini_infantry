@@ -16,9 +16,9 @@
 #include <yaml-cpp/node/parse.h>
 #include <yaml-cpp/yaml.h>
 // Project Headers
+#include "common.hpp"
 #include "motor.hpp"
 #include "util/logger_init.hpp" // Include logger_init.hpp
-
 using json = nlohmann::json;
 
 // 定义电机ID枚举
@@ -127,13 +127,9 @@ public:
 int main(int argc, char *argv[]) {
   // Initialize spdlog
   // 提取程序名作为日志器名称
-  std::string program_name = (argc > 0) ? std::string(argv[0]) : "unknown_program";
-  // 移除路径部分，只保留程序名
-  size_t last_slash_idx = program_name.find_last_of("/\\");
-  if (std::string::npos != last_slash_idx) {
-    program_name = program_name.substr(last_slash_idx + 1);
-  }
-  util::init_logger("application.log", program_name, spdlog::level::info, spdlog::level::info);
+  std::string program_name = util::getProgramName(std::string(argv[0]));
+  util::init_logger("/home/jaren/projects/mini_infantry/log/test/" + program_name + ".log", program_name, spdlog::level::info,
+                    spdlog::level::info);
 
   boost::asio::io_context io_ctx;
 

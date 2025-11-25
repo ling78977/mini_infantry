@@ -1,0 +1,44 @@
+[2025-11-25 22:47:06.129] [test_motion_solver] [info] Logger initialized successfully. Logging to /home/jaren/projects/mini_infantry/log/test/test_motion_solver.log
+[2025-11-25 22:47:06.130] [test_motion_solver] [info] PidController state reset.
+[2025-11-25 22:47:06.130] [test_motion_solver] [info] PidController initialized.
+[2025-11-25 22:47:06.151] [test_motion_solver] [info] RotaryEncoder initialized and ISRs registered on pins 3 and 4 for instance 0. Configured pins: A=3, B=4
+[2025-11-25 22:47:06.151] [test_motion_solver] [info] Motor initialized with pwm_pin: 1, encoder_pinA: 3, encoder_pinB: 4
+[2025-11-25 22:47:06.151] [test_motion_solver] [info] PidController state reset.
+[2025-11-25 22:47:06.151] [test_motion_solver] [info] PidController initialized.
+[2025-11-25 22:47:06.171] [test_motion_solver] [info] RotaryEncoder initialized and ISRs registered on pins 22 and 25 for instance 1. Configured pins: A=22, B=25
+[2025-11-25 22:47:06.171] [test_motion_solver] [info] Motor initialized with pwm_pin: 24, encoder_pinA: 22, encoder_pinB: 25
+[2025-11-25 22:47:06.171] [test_motion_solver] [info] PidController state reset.
+[2025-11-25 22:47:06.171] [test_motion_solver] [info] PidController initialized.
+[2025-11-25 22:47:06.192] [test_motion_solver] [info] RotaryEncoder initialized and ISRs registered on pins 7 and 10 for instance 2. Configured pins: A=7, B=10
+[2025-11-25 22:47:06.192] [test_motion_solver] [info] Motor initialized with pwm_pin: 23, encoder_pinA: 7, encoder_pinB: 10
+[2025-11-25 22:47:06.192] [test_motion_solver] [info] PidController state reset.
+[2025-11-25 22:47:06.192] [test_motion_solver] [info] PidController initialized.
+[2025-11-25 22:47:06.212] [test_motion_solver] [info] RotaryEncoder initialized and ISRs registered on pins 30 and 29 for instance 3. Configured pins: A=30, B=29
+[2025-11-25 22:47:06.212] [test_motion_solver] [info] Motor initialized with pwm_pin: 26, encoder_pinA: 30, encoder_pinB: 29
+[2025-11-25 22:47:06.212] [test_motion_solver] [info] PidController state reset.
+[2025-11-25 22:47:06.212] [test_motion_solver] [info] PidController parameters initialized: Kp=73.3, Ki=18.4, Kd=72, MaxIOut=99
+[2025-11-25 22:47:06.212] [test_motion_solver] [info] PidController state reset.
+[2025-11-25 22:47:06.212] [test_motion_solver] [info] PidController parameters initialized: Kp=70.3, Ki=51.6, Kd=67.7, MaxIOut=99
+[2025-11-25 22:47:06.212] [test_motion_solver] [info] PidController state reset.
+[2025-11-25 22:47:06.212] [test_motion_solver] [info] PidController parameters initialized: Kp=79.5, Ki=48, Kd=57.6, MaxIOut=99
+[2025-11-25 22:47:06.213] [test_motion_solver] [info] PidController state reset.
+[2025-11-25 22:47:06.213] [test_motion_solver] [info] PidController parameters initialized: Kp=59.8, Ki=42.4, Kd=61.3, MaxIOut=99
+[2025-11-25 22:47:06.213] [test_motion_solver] [info] PeriodicTimer started with period: 15ms
+[2025-11-25 22:47:06.213] [test_motion_solver] [info] PeriodicTimer started with period: 15ms
+[2025-11-25 22:47:06.213] [test_motion_solver] [info] PeriodicTimer started with period: 15ms
+[2025-11-25 22:47:06.213] [test_motion_solver] [info] PeriodicTimer started with period: 15ms
+[2025-11-25 22:47:06.213] [test_motion_solver] [info] PeriodicTimer started with period: 1000ms
+[2025-11-25 22:47:06.213] [test_motion_solver] [info] Motion solver test started. Press Ctrl+C to exit.
+[2025-11-25 22:47:07.213] [test_motion_solver] [info] Target: vx=-0, vy=0.2, v_yaw=0
+[2025-11-25 22:47:07.213] [test_motion_solver] [info] Current: vx=0, vy=0.020000001, v_yaw=0
+[2025-11-25 22:47:07.213] [test_motion_solver] [info] Current FL Speed: -0, FR Speed: 0, BL Speed: -0, BR Speed: -0
+[2025-11-25 22:47:08.213] [test_motion_solver] [info] Target: vx=-0.003999734, vy=0.19996001, v_yaw=0
+[2025-11-25 22:47:08.213] [test_motion_solver] [info] Current: vx=-0.0003999734, vy=0.037996, v_yaw=0
+[2025-11-25 22:47:08.213] [test_motion_solver] [info] Current FL Speed: -0, FR Speed: 0, BL Speed: -0, BR Speed: -0
+[2025-11-25 22:47:08.351] [test_motion_solver] [warning] Received signal 2, shutting down...
+[2025-11-25 22:47:08.351] [test_motion_solver] [info] PeriodicTimer stopped.
+[2025-11-25 22:47:08.351] [test_motion_solver] [info] PeriodicTimer stopped.
+[2025-11-25 22:47:08.351] [test_motion_solver] [info] PeriodicTimer stopped.
+[2025-11-25 22:47:08.351] [test_motion_solver] [info] PeriodicTimer stopped.
+[2025-11-25 22:47:08.351] [test_motion_solver] [info] PeriodicTimer stopped.
+[2025-11-25 22:47:08.352] [test_motion_solver] [info] Motion solver test finished.

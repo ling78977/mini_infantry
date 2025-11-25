@@ -84,7 +84,6 @@ public:
       last_update_time_ms_ = get_current_ms();
     }
     auto this_steps = rotary_encoder_.getSteps(); // Get steps from RotaryEncoder
-    // LOG_INFO("Encoder steps: " << this_steps); // Add log for debugging
     rotary_encoder_.resetSteps(); // Reset steps in RotaryEncoder
     auto this_time_ms = get_current_ms();
     auto time_diff_ms = this_time_ms - last_update_time_ms_;
@@ -115,7 +114,7 @@ public:
     }
 
     encoder_speed_.store(filtered_speed);
-    // std::cout << "Encoder speed: " << filtered_speed << std::endl;
+    
   }
   float getEncoderSpeed() const { return encoder_speed_.load(); }
 

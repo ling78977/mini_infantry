@@ -1,17 +1,21 @@
+#include "common.hpp"
+#include "logger_init.hpp"
 #include "motor.hpp"
 #include <csignal>
-#include <iostream>
 #include <thread>
 #include <vector>
 #include <boost/asio.hpp>
-#include "yaml-cpp/yaml.h"
 #include <spdlog/spdlog.h>
+#include <yaml-cpp/node/node.h>
+#include <yaml-cpp/node/parse.h>
 
 // 移除旧的 sigint_handler，使用 boost::asio::signal_set 替代
 
-int main() {
+int main(int argc, char* argv[]) {
   // signal(SIGINT, sigint_handler); // 移除此行
-
+  std::string program_name = util::getProgramName(std::string(argv[0]));
+  util::init_logger("/home/jaren/projects/mini_infantry/log/test/" + program_name + ".log", program_name, spdlog::level::info,
+                    spdlog::level::info);
   try {
     boost::asio::io_context io_ctx;
 

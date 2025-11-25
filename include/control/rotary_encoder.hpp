@@ -3,6 +3,7 @@
 #include <atomic>
 #include <cmath>
 #include <spdlog/spdlog.h>
+#include <stdexcept>
 #include <wiringPi.h>
 
 namespace mini_infantry {
@@ -36,7 +37,7 @@ public:
     }
     if (instance_index_ == -1) {
       spdlog::critical("Maximum number of RotaryEncoder instances reached.");
-      // throw std::runtime_error("Maximum number of RotaryEncoder instances reached.");
+      throw std::runtime_error("Maximum number of RotaryEncoder instances reached.");
     }
 
     pinMode(encoder_pinA_, INPUT);
@@ -47,9 +48,11 @@ public:
 
     if (wiringPiISR(encoder_pinA_, INT_EDGE_BOTH, isr_A_funcs_[instance_index_]) != 0) {
       spdlog::critical("Failed to setup ISR for pin A on RotaryEncoder");
+      throw std::runtime_error("Failed to setup ISR for pin B on RotaryEncoder");
     }
     if (wiringPiISR(encoder_pinB_, INT_EDGE_BOTH, isr_B_funcs_[instance_index_]) != 0) {
       spdlog::critical("Failed to setup ISR for pin B on RotaryEncoder");
+      throw std::runtime_error("Failed to setup ISR for pin B on RotaryEncoder");
     }
     spdlog::info("RotaryEncoder initialized and ISRs registered on pins {} and {} for instance {}. Configured pins: A={}, B={}",
                  encoder_pinA_, encoder_pinB_, instance_index_, encoder_pinA, encoder_pinB);

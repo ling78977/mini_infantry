@@ -52,9 +52,35 @@ include_directories(
 #     file(WRITE "${PROJECT_SOURCES}" "int main() { return 0; }\n")
 # endif()
 
-add_executable(${PROJECT_NAME} ${CMAKE_CURRENT_SOURCE_DIR}/src/test/test1.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/util/logger_init.cpp)
-add_executable(debug_pid ${CMAKE_CURRENT_SOURCE_DIR}/src/test/debug_pid.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/util/logger_init.cpp)
-add_executable(test_motion_solver ${CMAKE_CURRENT_SOURCE_DIR}/src/test/test_motion_solver.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/util/logger_init.cpp)
+
+add_executable(debug_pid
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/test/debug_pid.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/util/logger_init.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/control/pid_controller.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/control/rotary_encoder.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/control/motor.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/control/motion_solver.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/control/gimbal.cpp
+)
+add_executable(test_motion_solver
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/test/test_motion_solver.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/util/logger_init.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/control/pid_controller.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/control/rotary_encoder.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/control/motor.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/control/motion_solver.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/control/gimbal.cpp
+)
+
+add_executable(debug_gimbal_motor
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/test/debug_gimbal_motor.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/util/logger_init.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/control/gimbal.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/control/motor.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/control/pid_controller.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/control/rotary_encoder.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/control/motion_solver.cpp
+)
 
 target_link_libraries(debug_pid PRIVATE
     WiringPi::WiringPi
@@ -65,15 +91,17 @@ target_link_libraries(debug_pid PRIVATE
     spdlog::spdlog # Link spdlog
 )
 
-target_link_libraries(${PROJECT_NAME} PRIVATE
-    WiringPi::WiringPi
-    yaml-cpp
-    spdlog::spdlog # Link spdlog
-)
+
 
 target_link_libraries(test_motion_solver PRIVATE
     WiringPi::WiringPi
     yaml-cpp
+    Boost::system
+    spdlog::spdlog # Link spdlog
+)
+
+target_link_libraries(debug_gimbal_motor PRIVATE
+    WiringPi::WiringPi
     Boost::system
     spdlog::spdlog # Link spdlog
 )
